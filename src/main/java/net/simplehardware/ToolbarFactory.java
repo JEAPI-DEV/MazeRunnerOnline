@@ -42,7 +42,7 @@ public class ToolbarFactory {
 
         JLabel playerLabel = new JLabel("Player ID:");
         JSpinner playerSpinner = new JSpinner(
-            new SpinnerNumberModel(1, 1, 8, 1)
+            new SpinnerNumberModel(1, 1, 4, 1)
         );
         playerSpinner.addChangeListener(e ->
             editor.setCurrentPlayerId((int) playerSpinner.getValue())
@@ -103,7 +103,7 @@ public class ToolbarFactory {
         saveBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         saveBtn.addActionListener(e -> MazeIO.exportJson(editor, grid));
 
-        JButton calcMinMovesBtn = new JButton("Calculate Min Moves");
+        JButton calcMinMovesBtn = new JButton("Calc Min Moves");
         calcMinMovesBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         calcMinMovesBtn.addActionListener(e -> {
             int playerId = editor.getCurrentPlayerId();
