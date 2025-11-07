@@ -44,6 +44,19 @@ public class MazeEditor extends JFrame {
     }
 
     public static void main(String[] args) {
+        try {
+            javax.swing.LookAndFeel materialLF = new mdlaf.MaterialLookAndFeel();
+            UIManager.setLookAndFeel(materialLF);
+            System.out.println("Material UI Look and Feel applied successfully");
+        } catch (Exception e) {
+            System.err.println("Failed to apply Material UI Look and Feel: " + e.getMessage());
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                System.out.println("System Look and Feel applied as fallback");
+            } catch (Exception fallbackException) {
+                System.err.println("Failed to set system look and feel: " + fallbackException.getMessage());
+            }
+        }
         SwingUtilities.invokeLater(MazeEditor::new);
     }
 }

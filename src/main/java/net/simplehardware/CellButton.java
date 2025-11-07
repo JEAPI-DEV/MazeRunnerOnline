@@ -17,8 +17,8 @@ public class CellButton extends JPanel {
         this.y = y;
         this.editor = editor;
         setPreferredSize(new Dimension(60, 60));
-        setBackground(Color.LIGHT_GRAY);
-        setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        setBackground(new Color(245, 245, 245));
+        setBorder(BorderFactory.createLineBorder(new Color(189, 189, 189), 1));
 
         // Click and drag
         addMouseListener(
@@ -70,11 +70,11 @@ public class CellButton extends JPanel {
 
     private void updateColor() {
         switch (mode) {
-            case FLOOR -> setBackground(Color.LIGHT_GRAY);
+            case FLOOR -> setBackground(new Color(245, 245, 245));
             case WALL -> setBackground(new Color(120, 20, 20));
-            case START -> setBackground(Color.CYAN);
-            case FINISH -> setBackground(Color.PINK);
-            case SHEET -> setBackground(new Color(255, 215, 0));
+            case START -> setBackground(new Color(76, 175, 80));
+            case FINISH -> setBackground(new Color(33, 150, 243));
+            case SHEET -> setBackground(new Color(255, 152, 0));
             default -> {
                 if (isFormMode(mode)) {
                     setBackground(getPlayerColor(playerId));
