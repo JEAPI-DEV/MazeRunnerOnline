@@ -3,11 +3,16 @@ package net.simplehardware;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Font;
-import java.net.URL;
 
-import javax.swing.*;
-import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 
 public class ToolbarFactory {
 
@@ -20,17 +25,6 @@ public class ToolbarFactory {
         this.grid = grid;
     }
 
-    private ImageIcon loadSVGIcon(String iconPath) {
-            URL imgURL = this.getClass().getResource("/images/" + iconPath);
-            if(imgURL != null) {
-                System.out.println("Loading SVG icon from " + imgURL);
-                ImageIcon icon = new ImageIcon(imgURL);
-
-                return icon;
-            }
-            System.out.println("Could not load SVG icon from " + iconPath);
-            return null;
-    }
     private void styleButton(JButton button, Color background, Color border) {
         button.setBackground(background);
         button.setBorder(BorderFactory.createLineBorder(border, 1));
@@ -143,9 +137,7 @@ public class ToolbarFactory {
             int playerId = editor.getCurrentPlayerId();
             int minMoves = Pathfinder.calculateMinimumMoves(grid.getCells(), playerId);
             if (minMoves != -1) {
-                JOptionPane.showMessageDialog(null,
-                    "Minimum moves needed for player " + playerId + ": " + minMoves,
-                    "Pathfinding Result", JOptionPane.INFORMATION_MESSAGE);
+                DialogUtils.showPathfindingResult(editor, playerId, minMoves);
             }
         });
 

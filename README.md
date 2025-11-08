@@ -1,24 +1,27 @@
 # Maze Creator
 
-This project is a maze creator application built in Java. It allows users to create, mazes with forms collection mechanics for the Maze Runner game system.m
+This project is a maze creator application built in Java. It allows users to create, mazes with forms collection mechanics for the Maze Runner game system.
 
-![1.png](Images/1.png)
+![1-new.png](Images/1-new.png)
 
 ## Generated Map Example
 
-![2.png](Images/2.png)
+![2-new.png](Images/2-new.png)
 
 ```json
 {
-  "id": "MazeExample",
-  "name": "MazeExample",
+  "name": "Laby",
   "forms": [
     {
       "id": "A",
       "name": "Form A"
+    },
+    {
+      "id": "B",
+      "name": "Form B"
     }
   ],
-  "maze": "######################/##@3      !1A3    @4##/##  ##############  ##/##        A4##!2##  ##/##########  ##  ##  ##/##A2      !3##      ##/##  ##################/##  ##          ##  ##/##  ##!4######  ##  ##/##    A1##@1      @2##/######################"
+  "maze": "######################/##@2    ##@1##!1    ##/######  ##  ##  ##  ##/##      A2  A1  ##  ##/##B1##########  ##B2##/##      ##          ##/######      ##########/##      ##          ##/##  ######!2######  ##/##                  ##/######################"
 }
 ```
 
@@ -35,8 +38,7 @@ This project is a maze creator application built in Java. It allows users to cre
 ### Form Collection System  
 - **Forms A-Z**: Complete alphabet of collectible forms
 - **Sequential Collection**: Players must collect forms in alphabetical order
-- **Player Ownership**: Each form belongs to a specific player (1-8)
-- **Sheet Objects**: Special moveable objects for advanced levels
+- **Player Ownership**: Each form belongs to a specific player (1-4)
 
 ### Important
 - **Export**: JSON format compatible with Maze Runner game engine
@@ -56,14 +58,13 @@ Import the project into your Java IDE and run `MazeEditor.main()`.
 
 ### From Command Line
 ```bash
-javac -cp gson-2.13.2.jar -d target/classes src/main/java/net/simplehardware/*.java
-java -cp "target/classes:gson-2.13.2.jar" net.simplehardware.MazeEditor
+maven install
 ```
 
 ### Pre-built Release
 Download the Release version and run with:
 ```bash
-java -jar MazeCreator_1_1_3.jar
+java -jar MazeCreator_1_3.jar
 ```
 
 ## Usage

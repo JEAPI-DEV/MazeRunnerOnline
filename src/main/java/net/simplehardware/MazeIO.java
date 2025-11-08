@@ -1,9 +1,21 @@
 package net.simplehardware;
 
-import com.google.gson.*;
-import java.io.*;
-import java.util.*;
-import javax.swing.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.JSpinner;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class MazeIO {
 
@@ -21,14 +33,18 @@ public class MazeIO {
                     MazeInfoData.class
                 );
                 applyMazeData(grid, data, gridSizeSpinner);
-                JOptionPane.showMessageDialog(
+                DialogUtils.showMessageDialog(
                     editor,
-                    "Maze loaded successfully!"
+                    "Maze loaded successfully!",
+                    "Load Complete",
+                    JOptionPane.INFORMATION_MESSAGE
                 );
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(
+                DialogUtils.showMessageDialog(
                     editor,
-                    "Failed to load: " + ex.getMessage()
+                    "Failed to load: " + ex.getMessage(),
+                    "Load Error",
+                    JOptionPane.ERROR_MESSAGE
                 );
             }
         }
@@ -41,14 +57,22 @@ public class MazeIO {
     ) {
         if (data.maze == null) return;
         String[] rows = data.maze.split("/");
-        int size = rows.length;
-        grid.resizeGrid(size);
-        spinner.setValue(size);
+        int numRows = rows.length;
+        int numCols = rows[0].length() / 2;  // Each cell is 2 characters (type + placeholder/playerid)
+        int gridSize = Math.max(numRows, numCols);
+        grid.resizeGrid(gridSize);
+        spinner.setValue(gridSize);
 
         CellButton[][] cells = grid.getCells();
-        for (int y = 0; y < size; y++) {
+        for (int y = 0; y < numRows && y < gridSize; y++) {
             String row = rows[y];
-            for (int x = 0; x < size; x++) {
+            int rowLength = row.length() / 2;
+            
+            for (int x = 0; x < rowLength && x < gridSize; x++) {
+                if (2 * x + 1 >= row.length()) {
+                    break;
+                }
+                
                 char chType = row.charAt(2 * x);
                 char chOwner = row.charAt(2 * x + 1);
                 int pid = Character.isDigit(chOwner) ? chOwner - '0' : 0;
@@ -240,14 +264,18 @@ public class MazeIO {
                 FileWriter writer = new FileWriter(chooser.getSelectedFile())
             ) {
                 gson.toJson(maze, writer);
-                JOptionPane.showMessageDialog(
+                DialogUtils.showMessageDialog(
                     editor,
-                    "Maze saved successfully!"
+                    "Maze saved successfully!",
+                    "Save Complete",
+                    JOptionPane.INFORMATION_MESSAGE
                 );
             } catch (IOException e) {
-                JOptionPane.showMessageDialog(
+                DialogUtils.showMessageDialog(
                     editor,
-                    "Error saving: " + e.getMessage()
+                    "Error saving: " + e.getMessage(),
+                    "Save Error",
+                    JOptionPane.ERROR_MESSAGE
                 );
             }
         }
