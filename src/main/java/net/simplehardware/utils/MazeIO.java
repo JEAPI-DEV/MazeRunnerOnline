@@ -18,6 +18,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.simplehardware.MazeEditor;
 import net.simplehardware.MazeGrid;
+import net.simplehardware.dialogs.MessageDialog;
 import net.simplehardware.models.CellButton;
 import net.simplehardware.models.Mode;
 import net.simplehardware.models.FormInfo;
@@ -39,19 +40,19 @@ public class MazeIO {
                     MazeInfoData.class
                 );
                 applyMazeData(grid, data, gridSizeSpinner);
-                DialogUtils.showMessageDialog(
-                    editor,
+                new MessageDialog(
+                editor,
                     "Maze loaded successfully!",
                     "Load Complete",
                     JOptionPane.INFORMATION_MESSAGE
-                );
+                            ).show();
             } catch (Exception ex) {
-                DialogUtils.showMessageDialog(
+                new MessageDialog(
                     editor,
                     "Failed to load: " + ex.getMessage(),
                     "Load Error",
                     JOptionPane.ERROR_MESSAGE
-                );
+                ).show();
             }
         }
     }
@@ -143,19 +144,18 @@ public class MazeIO {
                 FileWriter writer = new FileWriter(chooser.getSelectedFile())
             ) {
                 gson.toJson(maze, writer);
-                DialogUtils.showMessageDialog(
-                    editor,
+                new MessageDialog(                    editor,
                     "Maze saved successfully!",
                     "Save Complete",
                     JOptionPane.INFORMATION_MESSAGE
-                );
+                ).show();
             } catch (IOException e) {
-                DialogUtils.showMessageDialog(
-                    editor,
+                new MessageDialog(
+                        editor,
                     "Error saving: " + e.getMessage(),
                     "Save Error",
                     JOptionPane.ERROR_MESSAGE
-                );
+                ).show();
             }
         }
     }

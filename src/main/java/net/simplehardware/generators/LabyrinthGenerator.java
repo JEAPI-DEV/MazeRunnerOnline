@@ -9,9 +9,9 @@ public class LabyrinthGenerator {
 
     private static final Random RNG = new Random();
 
-    public static boolean generateMaze(MazeGrid grid, int players) {
+    public static void generateMaze(MazeGrid grid) {
         int n = grid.getGridSize();
-        if (n < 5) return false;
+        if (n < 5) return;
 
         CellButton[][] cells = grid.getCells();
 
@@ -39,7 +39,6 @@ public class LabyrinthGenerator {
             cells[i][n - 1].setMode(Mode.WALL, 0);
         }
 
-        return true;
     }
 
     private static void generateMaze(CellButton[][] cells, boolean[][] visited, int startX, int startY, int n) {
@@ -211,7 +210,7 @@ public class LabyrinthGenerator {
         int[][] dirs = {{0,1},{1,0},{0,-1},{-1,0}};
         int targetIdx = -1;
 
-        while (!q.isEmpty() && targetIdx == -1) {
+        while (!q.isEmpty()) {
             int idx = q.poll();
             int x = idx / n;
             int y = idx % n;
@@ -242,7 +241,6 @@ public class LabyrinthGenerator {
         while (cur != -1) {
             int cx = cur / n;
             int cy = cur % n;
-            // do not carve outer border
             if (cx > 0 && cx < n-1 && cy > 0 && cy < n-1) {
                 cells[cx][cy].setMode(Mode.FLOOR, 0);
             }

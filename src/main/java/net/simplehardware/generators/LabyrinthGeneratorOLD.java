@@ -10,15 +10,14 @@ public class LabyrinthGeneratorOLD {
 
     private static final Random RNG = new Random();
 
-    public static boolean generateMaze(MazeGrid grid, int players) {
+    public static void generateMaze(MazeGrid grid) {
         int n = grid.getGridSize();
-        if (n < 5) return false;
+        if (n < 5) return;
 
         CellButton[][] cells = grid.getCells();
 
         // --- Step 1: generate structural maze ---
         generateRecursiveBacktrackerMaze(cells);
-        return true;
     }
 
     // ------------------------------------------------

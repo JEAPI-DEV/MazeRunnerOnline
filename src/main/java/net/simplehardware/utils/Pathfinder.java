@@ -1,5 +1,6 @@
 package net.simplehardware.utils;
 
+import net.simplehardware.dialogs.PathfindingErrorDialog;
 import net.simplehardware.models.CellButton;
 import net.simplehardware.models.Mode;
 
@@ -137,16 +138,16 @@ public class Pathfinder {
     public static int calculateMinimumMoves(CellButton[][] grid, int startPlayerId) {
         List<Point> startPositions = findPositions(grid, Mode.START, startPlayerId);
         if (startPositions.isEmpty()) {
-            DialogUtils.showPathfindingError(null,
-                "No start position found for player " + startPlayerId);
+            new PathfindingErrorDialog(null,
+                "No start position found for player " + startPlayerId).show();
             return -1;
         }
         Point startPoint = startPositions.get(0);
 
         List<Point> finishPositions = findPositions(grid, Mode.FINISH, startPlayerId);
         if (finishPositions.isEmpty()) {
-            DialogUtils.showPathfindingError(null,
-                "No finish position found for player " + startPlayerId);
+            new PathfindingErrorDialog(null,
+                "No finish position found for player " + startPlayerId).show();
             return -1;
         }
         Point finishPoint = finishPositions.get(0);
@@ -168,8 +169,8 @@ public class Pathfinder {
         if (formPoints.isEmpty()) {
             int directPath = findShortestPath(grid, startPoint, finishPoint);
             if (directPath == -1) {
-                DialogUtils.showPathfindingError(null,
-                    "No path exists from start to finish");
+                new PathfindingErrorDialog(null,
+                    "No path exists from start to finish").show();
                 return -1;
             }
             return directPath;
@@ -180,8 +181,8 @@ public class Pathfinder {
 
         int pathToFirstForm = findShortestPath(grid, currentPoint, formPoints.get(0));
         if (pathToFirstForm == -1) {
-            DialogUtils.showPathfindingError(null,
-                "No path exists from start to first form");
+            new PathfindingErrorDialog(null,
+                "No path exists from start to first form").show();
             return -1;
         }
         totalMoves += pathToFirstForm;
@@ -190,8 +191,8 @@ public class Pathfinder {
         for (int i = 1; i < formPoints.size(); i++) {
             int path = findShortestPath(grid, currentPoint, formPoints.get(i));
             if (path == -1) {
-                DialogUtils.showPathfindingError(null,
-                    "No path exists between forms " + (char)('A' + i - 1) + " and " + (char)('A' + i));
+                new PathfindingErrorDialog(null,
+                    "No path exists between forms " + (char)('A' + i - 1) + " and " + (char)('A' + i)).show();
                 return -1;
             }
             totalMoves += path;
@@ -200,8 +201,8 @@ public class Pathfinder {
 
         int pathToFinish = findShortestPath(grid, currentPoint, finishPoint);
         if (pathToFinish == -1) {
-            DialogUtils.showPathfindingError(null,
-                "No path exists from last form to finish");
+            new PathfindingErrorDialog(null,
+                "No path exists from last form to finish").show();
             return -1;
         }
         totalMoves += pathToFinish;
