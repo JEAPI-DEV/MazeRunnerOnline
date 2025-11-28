@@ -309,7 +309,7 @@ public class GameEngine {
         logToPlayer(player.getId(), line1);
 
         // Line 2: Current cell status
-        String currentCell = maze.getCellInfo(player.getX(), player.getY(), players, player);
+        String currentCell = maze.getCellInfo(player.getX(), player.getY(), players, player, null);
         process.sendLine(currentCell);
         protocolCapture.append(currentCell).append("\n");
         logToPlayer(player.getId(), currentCell);
@@ -318,7 +318,7 @@ public class GameEngine {
         for (Direction dir : Direction.values()) {
             int nx = player.getX() + dir.getDx();
             int ny = player.getY() + dir.getDy();
-            String cellInfo = maze.getCellInfo(nx, ny, players, player);
+            String cellInfo = maze.getCellInfo(nx, ny, players, player, dir);
             process.sendLine(cellInfo);
             protocolCapture.append(cellInfo).append("\n");
             logToPlayer(player.getId(), cellInfo);
@@ -328,8 +328,24 @@ public class GameEngine {
     private void printFinalResults() {
         System.out.println("Final Scores:");
 
+        // Check for Last Player Standing bonus
+        long activePlayers = players.stream().filter(Player::isActive).count();
+        if (activePlayers == 1) {
+            Player lastStanding = players.stream().filter(Player::isActive).findFirst().orElse(null);
+            if (lastStanding != null) {
+                System.out.println("Last Player Standing Bonus: " + lastStanding.getId() + " (+20 points)");
+                lastStanding.addScore(20);
+            }
+        }
+
         List<Player> sortedPlayers = new ArrayList<>(players);
-        sortedPlayers.sort((p1, p2) -> Integer.compare(p2.getScore(), p1.getScore()));
+        sortedPlayers.sort((p1, p2) -> {
+            int scoreCompare = Integer.compare(p2.getScore(), p1.getScore());
+            if (scoreCompare != 0) {
+                return scoreCompare;
+            }
+            return Integer.compare(p2.getCollectedForms().size(), p1.getCollectedForms().size());
+        });
 
         for (int i = 0; i < sortedPlayers.size(); i++) {
             Player p = sortedPlayers.get(i);
@@ -338,7 +354,7 @@ public class GameEngine {
             System.out.println((i + 1) + ". Player " + p.getId() + ": " +
                     p.getScore() + " points (" + status + ") - Forms: " +
                     p.getCollectedForms().size() + "/" + p.getAssignedForms().size() +
-                    " - Turns: " + (p.isActive() ? referee.getCurrentTurn() : "Stopped"));
+                    " - Turns: " + (p.isFinished() || p.isActive() ? referee.getCurrentTurn() : "Stopped"));
         }
 
         Player winner = referee.getWinner();

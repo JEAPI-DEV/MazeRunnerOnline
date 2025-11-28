@@ -14,6 +14,7 @@ target/
 /out
 /target
 .idea/
+/old_project
 ### Eclipse ###
 .apt_generated
 .classpath

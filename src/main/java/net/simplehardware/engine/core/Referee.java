@@ -32,6 +32,12 @@ public class Referee {
             return ActionResult.fail("INACTIVE");
         }
 
+        // Check if player is talking (penalty turn)
+        if (player.isTalking()) {
+            player.addScore(-5);
+            return ActionResult.fail("TALKING");
+        }
+
         String[] parts = actionLine.trim().split("\\s+");
         if (parts.length == 0) {
             return ActionResult.fail("INVALID");
@@ -39,7 +45,7 @@ public class Referee {
 
         try {
             ActionName action = ActionName.valueOf(parts[0].toUpperCase());
-            
+
             return switch (action) {
                 case GO -> handleGo(player, parts);
                 case POSITION -> handlePosition(player);
@@ -79,16 +85,7 @@ public class Referee {
             // Move the player
             player.setPosition(newX, newY);
 
-            // Check for player collisions (Level 3+)
-            if (leagueLevel >= 3) {
-                for (Player other : players) {
-                    if (other.getId() != player.getId() && other.isActive() &&
-                        other.getX() == newX && other.getY() == newY) {
-                        player.setTalking(true);
-                        other.setTalking(true);
-                    }
-                }
-            }
+            // Collision check moved to updateTurn to handle swapping correctly
 
             return ActionResult.ok(direction.name());
         } catch (IllegalArgumentException e) {
@@ -116,6 +113,14 @@ public class Referee {
 
         FloorCell floor = (FloorCell) cell;
 
+        // Try to take a sheet (Level 5+) - Priority over Form
+        if (leagueLevel >= 5 && floor.hasSheet()) {
+            player.addSheet();
+            floor.setSheet(false);
+            player.setTaking(true);
+            return ActionResult.ok("SHEET");
+        }
+
         // Try to take a form (Level 2+)
         if (leagueLevel >= 2 && floor.getForm() != null) {
             char form = floor.getForm();
@@ -133,14 +138,6 @@ public class Referee {
             player.addForm(form);
             floor.removeForm();
             return ActionResult.ok("FORM");
-        }
-
-        // Try to take a sheet (Level 5+)
-        if (leagueLevel >= 5 && floor.hasSheet()) {
-            player.addSheet();
-            floor.setSheet(false);
-            player.setTaking(true);
-            return ActionResult.ok("SHEET");
         }
 
         return ActionResult.fail("EMPTY");
@@ -181,6 +178,16 @@ public class Referee {
 
             FloorCell targetFloor = (FloorCell) targetCell;
 
+            // Kick sheet (Level 5+) - Priority over Form
+            if (leagueLevel >= 5 && floor.hasSheet()) {
+                if (targetFloor.hasSheet()) {
+                    return ActionResult.fail("BLOCKED");
+                }
+                targetFloor.setSheet(true);
+                floor.setSheet(false);
+                return ActionResult.ok(direction.name());
+            }
+
             // Kick form (Level 4+)
             if (floor.getForm() != null) {
                 if (targetFloor.getForm() != null) {
@@ -188,16 +195,6 @@ public class Referee {
                 }
                 targetFloor.setForm(floor.getForm(), floor.getFormOwner());
                 floor.removeForm();
-                return ActionResult.ok(direction.name());
-            }
-
-            // Kick sheet (Level 5+)
-            if (leagueLevel >= 5 && floor.hasSheet()) {
-                if (targetFloor.hasSheet()) {
-                    return ActionResult.fail("BLOCKED");
-                }
-                targetFloor.setSheet(true);
-                floor.setSheet(false);
                 return ActionResult.ok(direction.name());
             }
 
@@ -260,11 +257,35 @@ public class Referee {
 
     public void updateTurn() {
         currentTurn++;
-        
+
+        // Check for collisions (Level 3+)
+        // Match reference logic: Toggle talking state based on collisions
+        if (leagueLevel >= 3) {
+            for (Player p : players) {
+                if (!p.isActive())
+                    continue;
+
+                if (p.isTalking()) {
+                    p.setTalking(false);
+                } else {
+                    boolean collision = false;
+                    for (Player other : players) {
+                        if (other.getId() != p.getId() && other.isActive() &&
+                                other.getX() == p.getX() && other.getY() == p.getY()) {
+                            collision = true;
+                            break;
+                        }
+                    }
+                    if (collision) {
+                        p.setTalking(true);
+                    }
+                }
+            }
+        }
+
         // Reset temporary states
         for (Player player : players) {
             if (player.isActive()) {
-                player.setTalking(false);
                 player.setTaking(false);
             }
         }
@@ -293,16 +314,30 @@ public class Referee {
 
     public Player getWinner() {
         // Find player with highest score
-        Player winner = null;
-        int maxScore = -1;
-        
-        for (Player player : players) {
-            if (player.getScore() > maxScore) {
-                maxScore = player.getScore();
-                winner = player;
+        // Tie-breaker: Number of collected forms
+
+        List<Player> sortedPlayers = new java.util.ArrayList<>(players);
+        sortedPlayers.sort((p1, p2) -> {
+            int scoreCompare = Integer.compare(p2.getScore(), p1.getScore());
+            if (scoreCompare != 0) {
+                return scoreCompare;
+            }
+            return Integer.compare(p2.getCollectedForms().size(), p1.getCollectedForms().size());
+        });
+
+        if (sortedPlayers.isEmpty())
+            return null;
+
+        // Check if there's a unique winner or a tie for first place
+        if (sortedPlayers.size() > 1) {
+            Player first = sortedPlayers.get(0);
+            Player second = sortedPlayers.get(1);
+            if (first.getScore() == second.getScore() &&
+                    first.getCollectedForms().size() == second.getCollectedForms().size()) {
+                return null; // Tie
             }
         }
-        
-        return winner;
+
+        return sortedPlayers.get(0);
     }
 }

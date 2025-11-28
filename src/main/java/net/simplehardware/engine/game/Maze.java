@@ -122,8 +122,10 @@ public class Maze {
 
     /**
      * Get cell information including opponent proximity
+     * 
+     * @param dir The direction we are looking in (null for current cell)
      */
-    public String getCellInfo(int x, int y, List<Player> allPlayers, Player currentPlayer) {
+    public String getCellInfo(int x, int y, List<Player> allPlayers, Player currentPlayer, Direction dir) {
         Cell cell = getCell(x, y);
         if (cell == null) {
             return "WALL";
@@ -136,24 +138,69 @@ public class Maze {
         }
 
         // Add opponent proximity indicator (Level 3+)
-        int minDistance = findNearestOpponent(x, y, allPlayers, currentPlayer);
-        if (minDistance > 0 && minDistance <= 5) {
-            info.append(" !").append(minDistance);
+        if (dir == null) {
+            // Current cell: check if any opponent is HERE
+            if (hasOpponent(x, y, allPlayers, currentPlayer)) {
+                info.append(" !");
+            }
+        } else {
+            // Neighbor cell: check if any opponent is visible in this direction
+            int distance = findOpponentInDirection(x, y, dir, allPlayers, currentPlayer);
+            if (distance > 0) {
+                info.append(" !").append(distance);
+            }
         }
 
         return info.toString();
     }
 
-    private int findNearestOpponent(int x, int y, List<Player> allPlayers, Player currentPlayer) {
-        int minDistance = Integer.MAX_VALUE;
+    private boolean hasOpponent(int x, int y, List<Player> allPlayers, Player currentPlayer) {
         for (Player player : allPlayers) {
-            if (player.getId() == currentPlayer.getId() || !player.isActive()) {
-                continue;
+            if (player.getId() != currentPlayer.getId() && player.isActive() &&
+                    player.getX() == x && player.getY() == y) {
+                return true;
             }
-            int distance = Math.abs(player.getX() - x) + Math.abs(player.getY() - y);
-            minDistance = Math.min(minDistance, distance);
         }
-        return minDistance == Integer.MAX_VALUE ? 0 : minDistance;
+        return false;
+    }
+
+    private int findOpponentInDirection(int startX, int startY, Direction dir, List<Player> allPlayers,
+            Player currentPlayer) {
+        // Look further in the direction
+        // "Gegner(n) zwei Felder weiter als dieses Nachbarfeld"
+        // So we start checking from startX + dx, startY + dy
+
+        int dx = dir.getDx();
+        int dy = dir.getDy();
+
+        int checkX = startX + dx;
+        int checkY = startY + dy;
+        int distance = 1; // Distance from neighbor
+
+        // We scan until we hit a wall or board edge?
+        // Requirement says "Sichtbarkeit von anderen Bots in direkter Linie"
+        // Usually implies line of sight blocked by walls.
+        // But the example "Gegner(n) zwei Felder weiter" implies we just report
+        // distance.
+        // Let's assume line of sight is blocked by walls.
+
+        while (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
+            Cell cell = cells[checkX][checkY];
+            if (cell instanceof WallCell) {
+                break; // Wall blocks view
+            }
+
+            // Check for opponents at this position
+            if (hasOpponent(checkX, checkY, allPlayers, currentPlayer)) {
+                return distance;
+            }
+
+            checkX += dx;
+            checkY += dy;
+            distance++;
+        }
+
+        return 0; // No opponent found
     }
 
     /**
