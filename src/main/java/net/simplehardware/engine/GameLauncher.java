@@ -84,17 +84,6 @@ public class GameLauncher {
                 throw new IllegalArgumentException("--map argument is required");
             }
 
-            if (playerPaths.isEmpty()) {
-                // Try to load from map if not provided?
-                // The requirement says "It should run the bots" and provides a CLI format.
-                // I will strictly follow CLI args for now, but maybe fallback if map has them?
-                // The user request implies explicit player paths.
-                // "The cli command should be ... --players 3 ..."
-                // So I will expect players to be provided via CLI or maybe map.
-                // Let's keep the fallback logic if players are empty, but the CLI parsing is
-                // primary.
-            }
-
             launchGame(mapPath, playerPaths, maxTurns, randomSpawn, level);
 
         } catch (Exception e) {
