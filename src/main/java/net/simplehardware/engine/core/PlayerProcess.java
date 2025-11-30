@@ -20,21 +20,20 @@ public class PlayerProcess {
     public PlayerProcess(int playerId, String jarPath) throws IOException {
         this.playerId = playerId;
         this.executor = Executors.newFixedThreadPool(2);
-        
+
         ProcessBuilder pb = new ProcessBuilder("java", "-jar", jarPath);
         // Don't redirect error stream - keep them separate
         this.process = pb.start();
-        
+
         // Separate readers for stdout and stderr
         this.stdoutReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         this.stderrReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
         this.stdinWriter = new PrintWriter(new OutputStreamWriter(process.getOutputStream()), true);
         this.timedOut = false;
-        
+
         // Start background threads to capture stderr
         startStderrCapture();
     }
-
 
     public void resetIO() {
         stdoutBuffer.setLength(0);
@@ -127,6 +126,41 @@ public class PlayerProcess {
             process.destroyForcibly();
         } catch (IOException e) {
             System.err.println("Error closing player process: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Check if there is more output available to read without blocking
+     */
+    public boolean hasMoreOutput() throws IOException {
+        return stdoutReader.ready();
+    }
+
+    /**
+     * Read a line from stdout without blocking if available
+     * 
+     * @return the line read, or null if no line is available
+     */
+    public String readLineNonBlocking() throws IOException {
+        if (stdoutReader.ready()) {
+            String line = stdoutReader.readLine();
+            if (line != null) {
+                synchronized (stdoutBuffer) {
+                    stdoutBuffer.append(line).append("\n");
+                }
+            }
+            return line;
+        }
+        return null;
+    }
+
+    /**
+     * Drain all available output from stdout buffer
+     * This prevents buffer accumulation when player outputs multiple lines
+     */
+    public void drainStdout() throws IOException {
+        while (stdoutReader.ready()) {
+            readLineNonBlocking();
         }
     }
 }

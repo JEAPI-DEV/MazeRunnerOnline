@@ -235,12 +235,36 @@ public class GameEngine {
             // Receive player action
             try {
                 long timeout = (turn == 1) ? firstTurnTimeout : turnTimeout;
-                String action = process.readLine(timeout);
 
-                if (action == null || action.trim().isEmpty()) {
+                List<String> outputs = new ArrayList<>();
+                String firstLine = process.readLine(timeout);
+
+                if (firstLine == null || firstLine.trim().isEmpty()) {
                     System.out.println("Player " + player.getId() + ": <no action>");
                     lastResults.put(player, ActionResult.fail("INVALID"));
                     continue;
+                }
+
+                outputs.add(firstLine);
+
+                try {
+                    while (process.hasMoreOutput()) {
+                        String extraLine = process.readLineNonBlocking();
+                        if (extraLine != null && !extraLine.trim().isEmpty()) {
+                            outputs.add(extraLine);
+                        } else {
+                            break;
+                        }
+                    }
+                } catch (IOException e) {}
+
+                String action = outputs.getLast();
+                if (action.startsWith("Listening ") && outputs.size() > 1) {
+                    action = outputs.getLast();
+                }
+                if (outputs.size() > 1) {
+                    System.out.println(
+                            "Player " + player.getId() + " output " + outputs.size() + " lines, using: " + action);
                 }
 
                 System.out.println("Player " + player.getId() + ": " + action);

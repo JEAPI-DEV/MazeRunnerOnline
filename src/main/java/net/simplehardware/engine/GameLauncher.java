@@ -143,25 +143,9 @@ public class GameLauncher {
         GameEngine.GameConfig config = new GameEngine.GameConfig();
         config.leagueLevel = level;
         config.maxTurns = maxTurns;
-        config.turnTimeoutMs = 50;
+        config.turnTimeoutMs = 100; //(was 50ms)
         config.firstTurnTimeoutMs = 1000;
         config.sheetsPerPlayer = 2; // Default or could be arg
-        // randomSpawn is not in GameConfig yet, might need to handle it.
-        // If randomSpawn is true, we might need to randomize start positions.
-        // The current GameEngine/Maze implementation might handle start positions from
-        // the map.
-        // If randomSpawn is requested, we might need to override that.
-        // For now, I will pass it to GameEngine or handle it here.
-        // Since I can't easily see Maze implementation details right now without
-        // reading more files,
-        // I'll assume GameEngine or Maze has a way to handle it, or I'll add it to
-        // config.
-
-        // Let's add randomSpawn to GameConfig if possible, or handle it before creating
-        // Maze?
-        // Maze constructor takes MazeData.
-        // I'll update GameConfig to include randomSpawn and let GameEngine handle it.
-
         // Create and run game
         GameEngine engine = new GameEngine(maze, jarPaths, config);
         // We need to pass randomSpawn to engine
