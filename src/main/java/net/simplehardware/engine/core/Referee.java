@@ -278,6 +278,7 @@ public class Referee {
                     }
                     if (collision) {
                         p.setTalking(true);
+                        currentTurn++;
                     }
                 }
             }
