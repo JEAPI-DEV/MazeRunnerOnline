@@ -28,19 +28,21 @@ public class GameEngine {
     private final long turnTimeout;
     private final long firstTurnTimeout;
     private final int sheetsPerPlayer;
+    private final int logging;
+    private final int turnInfo;
 
     private final Map<Player, ActionResult> lastResults;
     // private GameViewer viewer; // Removed
     private boolean randomSpawn = false;
     private final Map<Integer, StringBuilder> playerLogs = new HashMap<>();
     private final List<String> jarPaths; // Store jar paths for logging filenames
-    private ByteArrayOutputStream outputCapture = new ByteArrayOutputStream();
-    private ByteArrayOutputStream errorCapture = new ByteArrayOutputStream();
+    private final ByteArrayOutputStream outputCapture = new ByteArrayOutputStream();
+    private final ByteArrayOutputStream errorCapture = new ByteArrayOutputStream();
     private final StringBuilder protocolCapture = new StringBuilder();
     private final PrintStream originalOut = System.out;
     private final PrintStream originalErr = System.err;
 
-    public GameEngine(Maze maze, List<String> jarPaths, GameConfig config) throws IOException {
+    public GameEngine(Maze maze, List<String> jarPaths, GameConfig config) {
         this.maze = maze;
         this.jarPaths = new ArrayList<>(jarPaths);
         this.leagueLevel = config.leagueLevel;
@@ -48,6 +50,8 @@ public class GameEngine {
         this.turnTimeout = config.turnTimeoutMs;
         this.firstTurnTimeout = config.firstTurnTimeoutMs;
         this.sheetsPerPlayer = config.sheetsPerPlayer;
+        this.logging = config.logging;
+        this.turnInfo = config.turnInfo;
 
         this.players = new ArrayList<>();
         this.playerProcesses = new HashMap<>();
@@ -65,21 +69,20 @@ public class GameEngine {
         // Update finish cells with required form counts
         maze.updateFinishCells(players);
 
-        this.referee = new Referee(maze, players, leagueLevel);
+        this.referee = new Referee(maze, players, leagueLevel, config.debug == 1);
     }
 
     public void setRandomSpawn(boolean randomSpawn) {
         this.randomSpawn = randomSpawn;
     }
 
-    private void initializePlayers(List<String> jarPaths) throws IOException {
+    private void initializePlayers(List<String> jarPaths) {
         List<int[]> validStarts = new ArrayList<>();
         if (randomSpawn) {
             for (int y = 0; y < maze.getHeight(); y++) {
                 for (int x = 0; x < maze.getWidth(); x++) {
                     Cell cell = maze.getCell(x, y);
-                    if (cell instanceof net.simplehardware.engine.cells.FloorCell &&
-                            !(cell instanceof net.simplehardware.engine.cells.FinishCell)) {
+                    if (cell instanceof net.simplehardware.engine.cells.FloorCell) {
                         validStarts.add(new int[] { x, y });
                     }
                 }
@@ -123,8 +126,7 @@ public class GameEngine {
             for (int y = 0; y < maze.getHeight(); y++) {
                 for (int x = 0; x < maze.getWidth(); x++) {
                     Cell cell = maze.getCell(x, y);
-                    if (cell instanceof net.simplehardware.engine.cells.FloorCell) {
-                        net.simplehardware.engine.cells.FloorCell floor = (net.simplehardware.engine.cells.FloorCell) cell;
+                    if (cell instanceof net.simplehardware.engine.cells.FloorCell floor) {
                         if (floor.getForm() != null && floor.getFormOwner() == player.getId()) {
                             char form = floor.getForm();
                             if (!player.getAssignedForms().contains(form)) {
@@ -190,10 +192,7 @@ public class GameEngine {
 
         while (!referee.isGameOver(maxTurns)) {
             runTurn();
-            for (Player player : players) {
-                referee.updateTurn();
-            }
-
+            referee.updateTurn();
         }
 
         System.out.println("\n=== Game Over ===");
@@ -221,7 +220,8 @@ public class GameEngine {
         System.setOut(new PrintStream(outputCapture));
         System.setErr(new PrintStream(errorCapture));
 
-        System.out.println("--- Turn " + turn + " ---");
+        if (turnInfo == 1)
+            System.out.println("--- Turn " + turn + " ---");
 
         for (Player player : players) {
             if (!player.isActive())
@@ -242,7 +242,7 @@ public class GameEngine {
                 List<String> outputs = new ArrayList<>();
                 String firstLine = process.readLine(timeout);
 
-                if (firstLine == null || firstLine.trim().isEmpty()) {
+                if (firstLine == null || firstLine.trim().isEmpty() && turnInfo == 1) {
                     System.out.println("Player " + player.getId() + ": <no action>");
                     lastResults.put(player, ActionResult.fail("INVALID"));
                     continue;
@@ -259,7 +259,7 @@ public class GameEngine {
                             break;
                         }
                     }
-                } catch (IOException e) {
+                } catch (IOException ignored) {
                 }
 
                 String action = outputs.getLast();
@@ -271,7 +271,8 @@ public class GameEngine {
                             "Player " + player.getId() + " output " + outputs.size() + " lines, using: " + action);
                 }
 
-                System.out.println("Player " + player.getId() + ": " + action);
+                if (turnInfo == 1)
+                    System.out.println("Player " + player.getId() + ": " + action);
 
                 // Process action
                 ActionResult result = referee.processAction(player, action);
@@ -279,7 +280,8 @@ public class GameEngine {
 
                 logToPlayer(player.getId(), action); // Log action sent by player
 
-                System.out.println("  Result: " + result);
+                if (turnInfo == 1)
+                    System.out.println("  Result: " + result);
 
             } catch (TimeoutException e) {
                 System.out.println("Player " + player.getId() + ": TIMEOUT");
@@ -289,7 +291,8 @@ public class GameEngine {
             }
         }
 
-        System.out.println();
+        if (turnInfo == 1)
+            System.out.println();
 
         // Collect all player stdout and stderr
         StringBuilder playerStdoutAll = new StringBuilder();
@@ -323,7 +326,7 @@ public class GameEngine {
 
         // Print to console
         System.out.print(gameLog);
-        if (!playerStderr.isEmpty()) {
+        if (!playerStderr.isEmpty() && logging == 1) {
             System.err.print(playerStderr);
         }
     }
@@ -421,8 +424,11 @@ public class GameEngine {
     }
 
     public static class GameConfig {
+        public int debug = 0;
+        public int turnInfo = 1;
         public int leagueLevel = 5;
         public int maxTurns = 150;
+        public int logging = 1;
         public long turnTimeoutMs = 100;
         public long firstTurnTimeoutMs = 1000;
         public int sheetsPerPlayer = 2;

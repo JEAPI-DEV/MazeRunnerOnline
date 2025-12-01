@@ -28,6 +28,7 @@ public class GameLauncher {
         int maxTurns = 150;
         boolean randomSpawn = false;
         int level = 5;
+        int logging = 1, turninfo = 1, debug = 0;
 
         try {
             for (int i = 0; i < args.length; i++) {
@@ -74,6 +75,27 @@ public class GameLauncher {
                             throw new IllegalArgumentException("Missing value for --level");
                         }
                         break;
+                    case "--log":
+                        if(i + 1 < args.length){
+                            logging = Integer.parseInt(args[++i]);
+                        } else {
+                            throw new IllegalArgumentException("Missing value for --log");
+                        }
+                        break;
+                    case "--turnInfo":
+                        if(i + 1 < args.length){
+                            turninfo = Integer.parseInt(args[++i]);
+                        } else {
+                            throw new IllegalArgumentException("Missing value for --turnInfo");
+                        }
+                        break;
+                    case "--debug":
+                        if(i + 1 < args.length){
+                            debug = Integer.parseInt(args[++i]);
+                        } else {
+                            throw new IllegalArgumentException("Missing value for --debug");
+                        }
+                        break;
                     default:
                         // Ignore unknown args or handle as needed
                         break;
@@ -84,7 +106,7 @@ public class GameLauncher {
                 throw new IllegalArgumentException("--map argument is required");
             }
 
-            launchGame(mapPath, playerPaths, maxTurns, randomSpawn, level);
+            launchGame(mapPath, playerPaths, maxTurns, randomSpawn, level, logging, turninfo, debug);
 
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
@@ -98,7 +120,7 @@ public class GameLauncher {
                 "Usage: java -jar MazeRunner.jar --map \"path/to/file\" --players <count> \"path/to/player/1\" ... --max-turns <count> --randomSpawn <0|1> --level <int>");
     }
 
-    public static void launchGame(String mazeFile, List<String> jarPaths, int maxTurns, boolean randomSpawn, int level)
+    public static void launchGame(String mazeFile, List<String> jarPaths, int maxTurns, boolean randomSpawn, int level, int logging, int turninfo, int debug)
             throws IOException {
         // Load maze data
         MazeInfoData mazeData;
@@ -139,9 +161,13 @@ public class GameLauncher {
         // Create maze
         Maze maze = new Maze(mazeData);
 
+        System.out.println("Current debug status: " + debug);
         // Create game configuration
         GameEngine.GameConfig config = new GameEngine.GameConfig();
+        config.debug = debug;
+        config.turnInfo = turninfo;
         config.leagueLevel = level;
+        config.logging = logging;
         config.maxTurns = maxTurns;
         config.turnTimeoutMs = 100; //(was 50ms)
         config.firstTurnTimeoutMs = 1000;

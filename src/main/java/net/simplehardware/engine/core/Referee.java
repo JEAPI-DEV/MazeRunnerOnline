@@ -19,12 +19,14 @@ public class Referee {
     private final List<Player> players;
     private final int leagueLevel;
     private int currentTurn;
+    private final boolean debug;
 
-    public Referee(Maze maze, List<Player> players, int leagueLevel) {
+    public Referee(Maze maze, List<Player> players, int leagueLevel, boolean debug) {
         this.maze = maze;
         this.players = players;
         this.leagueLevel = leagueLevel;
         this.currentTurn = 1;
+        this.debug = debug;
     }
 
     public ActionResult processAction(Player player, String actionLine) {
@@ -74,6 +76,7 @@ public class Referee {
 
         try {
             Direction direction = Direction.fromString(parts[1]);
+            player.setDir(direction);
             int newX = player.getX() + direction.getDx();
             int newY = player.getY() + direction.getDy();
 
@@ -107,11 +110,9 @@ public class Referee {
         }
 
         Cell cell = maze.getCell(player.getX(), player.getY());
-        if (!(cell instanceof FloorCell)) {
+        if (!(cell instanceof FloorCell floor)) {
             return ActionResult.fail("EMPTY");
         }
-
-        FloorCell floor = (FloorCell) cell;
 
         // Try to take a sheet (Level 5+) - Priority over Form
         if (leagueLevel >= 5 && floor.hasSheet()) {
@@ -163,20 +164,17 @@ public class Referee {
         try {
             Direction direction = Direction.fromString(parts[1]);
             Cell currentCell = maze.getCell(player.getX(), player.getY());
-            if (!(currentCell instanceof FloorCell)) {
+            if (!(currentCell instanceof FloorCell floor)) {
                 return ActionResult.fail("EMPTY");
             }
 
-            FloorCell floor = (FloorCell) currentCell;
             int targetX = player.getX() + direction.getDx();
             int targetY = player.getY() + direction.getDy();
             Cell targetCell = maze.getCell(targetX, targetY);
 
-            if (targetCell == null || !(targetCell instanceof FloorCell)) {
+            if (!(targetCell instanceof FloorCell targetFloor)) {
                 return ActionResult.fail("BLOCKED");
             }
-
-            FloorCell targetFloor = (FloorCell) targetCell;
 
             // Kick sheet (Level 5+) - Priority over Form
             if (leagueLevel >= 5 && floor.hasSheet()) {
@@ -222,11 +220,10 @@ public class Referee {
         }
 
         Cell cell = maze.getCell(player.getX(), player.getY());
-        if (!(cell instanceof FloorCell)) {
+        if (!(cell instanceof FloorCell floor)) {
             return ActionResult.fail("BLOCKED");
         }
 
-        FloorCell floor = (FloorCell) cell;
         if (floor.hasSheet()) {
             return ActionResult.fail("BLOCKED");
         }
@@ -242,11 +239,10 @@ public class Referee {
         }
 
         Cell cell = maze.getCell(player.getX(), player.getY());
-        if (!(cell instanceof FinishCell)) {
+        if (!(cell instanceof FinishCell finish)) {
             return ActionResult.fail("BLOCKED");
         }
 
-        FinishCell finish = (FinishCell) cell;
         if (finish.getPlayerId() != player.getId()) {
             return ActionResult.fail("NOTYOURS");
         }
@@ -256,10 +252,10 @@ public class Referee {
     }
 
     public void updateTurn() {
-        currentTurn++;
+        for (Player ignored : players) {
+            currentTurn++;
+        }
 
-        // Check for collisions (Level 3+)
-        // Match reference logic: Toggle talking state based on collisions
         if (leagueLevel >= 3) {
             for (Player p : players) {
                 if (!p.isActive())
@@ -273,12 +269,18 @@ public class Referee {
                         if (other.getId() != p.getId() && other.isActive() &&
                                 other.getX() == p.getX() && other.getY() == p.getY()) {
                             collision = true;
+                            if (debug) {
+                                System.out.println("Collision detected:");
+                                System.out.println("  Player " + p.getId() + " at (" + p.getX() + "," + p.getY() + ")");
+                                System.out.println("  Player " + other.getId() + " at (" + other.getX() + ","
+                                        + other.getY() + ")");
+                                System.out.println("  Both players will be TALKING next turn");
+                            }
                             break;
                         }
                     }
                     if (collision) {
                         p.setTalking(true);
-                        currentTurn++;
                     }
                 }
             }

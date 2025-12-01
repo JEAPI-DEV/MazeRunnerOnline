@@ -1,5 +1,7 @@
 package net.simplehardware.engine.players;
 
+import net.simplehardware.engine.game.Direction;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -19,6 +21,7 @@ public class Player {
     private boolean active;
     private boolean timedOut;
     private int score;
+    private Direction dir;
 
     private final List<Character> assignedForms; // Forms this player needs to collect
     private final int startX;
@@ -145,6 +148,14 @@ public class Player {
         if (finished) {
             score += 100; // +100 points for completion
         }
+    }
+
+    public Direction getDir(){
+        return dir;
+    }
+
+    public void setDir(Direction dir){
+        this.dir = dir;
     }
 
     public boolean isActive() {
