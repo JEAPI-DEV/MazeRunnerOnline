@@ -1,6 +1,7 @@
 package net.simplehardware.engine.viewer;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
@@ -45,7 +46,7 @@ public class GameViewer extends JFrame {
         updateDisplay();
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(1200, 800));
+        setMinimumSize(new Dimension(1650, 1000));
         setLocationRelativeTo(null);
 
         // Apply dark theme
@@ -78,12 +79,12 @@ public class GameViewer extends JFrame {
 
         // Right side panel - Player stats and logs
         JPanel rightPanel = new JPanel(new BorderLayout(5, 5));
-        rightPanel.setPreferredSize(new Dimension(550, 0));
+        rightPanel.setPreferredSize(new Dimension(800, 0));
         rightPanel.setBackground(BG_DARK);
 
         // Player stats at top of right panel
         playerStatsPanel = new JPanel();
-        playerStatsPanel.setLayout(new BoxLayout(playerStatsPanel, BoxLayout.Y_AXIS));
+//        playerStatsPanel.setLayout(new BoxLayout(playerStatsPanel, BoxLayout.Y_AXIS));
         playerStatsPanel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(BORDER_COLOR),
                 "Players",
@@ -91,12 +92,17 @@ public class GameViewer extends JFrame {
                 javax.swing.border.TitledBorder.TOP,
                 new Font("Arial", Font.BOLD, 12),
                 FG_LIGHT));
+        playerStatsPanel.setLayout(new FlowLayout());
+
         playerStatsPanel.setBackground(BG_DARK);
         playerStatsPanel.setPreferredSize(new Dimension(0, 150));
         rightPanel.add(playerStatsPanel, BorderLayout.NORTH);
 
         // Player logs panel (2x2 grid)
-        JPanel logsPanel = new JPanel(new GridLayout(2, 2, 10, 10));
+        GridLayout layout = new GridLayout(2, 2, 10, 10);
+
+        JPanel logsPanel = new JPanel(layout);
+
         logsPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         logsPanel.setBackground(BG_DARK);
 
@@ -148,60 +154,79 @@ public class GameViewer extends JFrame {
         panel.setBorder(BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(PLAYER_COLORS[playerId - 1], 2),
                 "Player " + playerId,
-                javax.swing.border.TitledBorder.LEFT,
-                javax.swing.border.TitledBorder.TOP,
+                TitledBorder.LEFT,
+                TitledBorder.TOP,
                 new Font("Arial", Font.BOLD, 12),
                 PLAYER_COLORS[playerId - 1]));
         panel.setBackground(new Color(40, 44, 52));
 
-        // Stdout panel
+        // Create areas
+        JTextArea stdoutArea = createLogTextArea(1); // 1 row
+        JTextArea stderrArea = createLogTextArea(4); // initial 4 rows (will expand)
+
+        // Labels
+        JLabel stdoutLabel = createLogLabel("Standard Output", new Color(97, 175, 239));
+        JLabel stderrLabel = createLogLabel("Standard Error", new Color(224, 108, 117));
+
+        // Panels with labels
         JPanel stdoutPanel = new JPanel(new BorderLayout());
         stdoutPanel.setBackground(new Color(40, 44, 52));
-        JLabel stdoutLabel = new JLabel("Standard Output");
-        stdoutLabel.setForeground(new Color(97, 175, 239));
-        stdoutLabel.setFont(new Font("Arial", Font.BOLD, 10));
         stdoutPanel.add(stdoutLabel, BorderLayout.NORTH);
+        stdoutPanel.add(new JScrollPane(stdoutArea), BorderLayout.CENTER);
 
-        JTextArea stdoutArea = new JTextArea(3, 20);
-        stdoutArea.setEditable(false);
-        stdoutArea.setBackground(new Color(30, 34, 42));
-        stdoutArea.setForeground(new Color(171, 178, 191));
-        stdoutArea.setFont(new Font("Monospaced", Font.PLAIN, 10));
-        stdoutArea.setLineWrap(false);
-        JScrollPane stdoutScroll = new JScrollPane(stdoutArea);
-        stdoutScroll.setPreferredSize(new Dimension(0, 60));
-        stdoutPanel.add(stdoutScroll, BorderLayout.CENTER);
-
-        // Stderr panel
         JPanel stderrPanel = new JPanel(new BorderLayout());
         stderrPanel.setBackground(new Color(40, 44, 52));
-        JLabel stderrLabel = new JLabel("Standard Error");
-        stderrLabel.setForeground(new Color(224, 108, 117));
-        stderrLabel.setFont(new Font("Arial", Font.BOLD, 10));
         stderrPanel.add(stderrLabel, BorderLayout.NORTH);
+        stderrPanel.add(new JScrollPane(stderrArea), BorderLayout.CENTER);
 
-        JTextArea stderrArea = new JTextArea(3, 20);
-        stderrArea.setEditable(false);
-        stderrArea.setBackground(new Color(30, 34, 42));
-        stderrArea.setForeground(new Color(171, 178, 191));
-        stderrArea.setFont(new Font("Monospaced", Font.PLAIN, 10));
-        stderrArea.setLineWrap(false);
-        JScrollPane stderrScroll = new JScrollPane(stderrArea);
-        stderrScroll.setPreferredSize(new Dimension(0, 60));
-        stderrPanel.add(stderrScroll, BorderLayout.CENTER);
-
-        // Add both to main panel
-        JPanel logsContainer = new JPanel(new GridLayout(2, 1, 5, 5));
+        // Use GridBagLayout for proportional sizing: stdout = 1 part, stderr = 3 parts
+        JPanel logsContainer = new JPanel(new GridBagLayout());
         logsContainer.setBackground(new Color(40, 44, 52));
-        logsContainer.add(stdoutPanel);
-        logsContainer.add(stderrPanel);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.gridx = 0;
+        gbc.weightx = 1.0;
+
+        // Stdout: small, fixed-ish height
+        gbc.gridy = 0;
+        gbc.weighty = 0.2; // ~1 line
+        gbc.insets = new Insets(0, 0, 5, 0);
+        logsContainer.add(stdoutPanel, gbc);
+
+        // Stderr: takes remaining space
+        gbc.gridy = 1;
+        gbc.weighty = 0.8; // rest of the space
+        gbc.insets = new Insets(0, 0, 0, 0);
+        logsContainer.add(stderrPanel, gbc);
+
         panel.add(logsContainer, BorderLayout.CENTER);
 
-        // Store references for updating
+        // Store references
         stdoutArea.setName("stdout_" + playerId);
         stderrArea.setName("stderr_" + playerId);
 
         return panel;
+    }
+
+    // Helper: creates a styled log text area
+    private JTextArea createLogTextArea(int rows) {
+        JTextArea area = new JTextArea(rows, 15);
+        area.setEditable(false);
+        area.setBackground(Color.DARK_GRAY);
+        area.setForeground(new Color(171, 178, 191));
+        area.setFont(new Font("Monospaced", Font.PLAIN, 15));
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        return area;
+    }
+
+    // Helper: creates a styled log label
+    private JLabel createLogLabel(String text, Color color) {
+        JLabel label = new JLabel(text);
+        label.setForeground(color);
+        label.setFont(new Font("Arial", Font.BOLD, 10));
+        return label;
     }
 
     private void updateDisplay() {
