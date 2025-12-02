@@ -197,18 +197,15 @@ public class GameEngine {
         System.out.println(
                 "DEBUG: Entering game loop. MaxTurns: " + maxTurns + ", CurrentTurn: " + referee.getCurrentTurn());
 
+
         while (!referee.isGameOver(maxTurns)) {
             System.out.println("DEBUG: Running turn " + (referee.getCurrentTurn() + 1));
 
-
-
-//            captureGameState();
+            captureGameState();
             runTurn();
             referee.updateTurn();
-            captureGameState();
-
         }
-
+        captureGameState();
         System.out.println("\n=== Game Over ===");
         printFinalResults();
 
