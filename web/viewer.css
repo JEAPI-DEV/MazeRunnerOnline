@@ -1,0 +1,374 @@
+/* Ocean Serenity Theme for Viewer */
+:root {
+    --bg-primary: #01161E;
+    /* Midnight teal */
+    --bg-secondary: #124559;
+    /* Deep blue */
+    --bg-tertiary: #1a5b75;
+    /* Slightly lighter deep blue */
+    --text-primary: #EFF6E0;
+    /* Bright foam */
+    --text-secondary: #AEC3B0;
+    /* Mossy sage */
+    --accent-primary: #598392;
+    /* Misty gray/blue */
+    --border: #598392;
+    /* Misty gray */
+
+    /* Player Colors (Kept as is for game logic, but could be muted if desired) */
+    --player-1: rgb(255, 100, 100);
+    --player-2: rgb(100, 100, 255);
+    --player-3: rgb(100, 255, 100);
+    --player-4: rgb(255, 255, 100);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 20px;
+    gap: 20px;
+}
+
+/* Header */
+.header {
+    background: var(--bg-secondary);
+    padding: 20px 30px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    font-size: 1.5em;
+    font-weight: 300;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.turn-info {
+    font-size: 1.2em;
+    font-weight: 400;
+    color: var(--text-secondary);
+    font-family: 'Courier New', monospace;
+}
+
+/* Main Content */
+.main-content {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Maze Section */
+.maze-section {
+    flex: 1;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    padding: 20px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.maze-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#maze-canvas {
+    border: 1px solid var(--border);
+    background: #000;
+    /* Keep maze background black for contrast */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Right Panel */
+.right-panel {
+    width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Player Stats */
+.player-stats-section {
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    padding: 20px;
+}
+
+.player-stats-section h2 {
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+}
+
+.player-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.player-card {
+    background: var(--bg-primary);
+    border-radius: 2px;
+    padding: 15px;
+    border-left: 4px solid;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-card.player-1 {
+    border-left-color: var(--player-1);
+}
+
+.player-card.player-2 {
+    border-left-color: var(--player-2);
+}
+
+.player-card.player-3 {
+    border-left-color: var(--player-3);
+}
+
+.player-card.player-4 {
+    border-left-color: var(--player-4);
+}
+
+.player-card .player-name {
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.player-card .status {
+    font-size: 0.8em;
+    padding: 4px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.player-card .status.finished {
+    background: var(--text-secondary);
+    color: var(--bg-primary);
+}
+
+.player-card .status.active {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+}
+
+.player-card .status.inactive {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+/* Player Logs */
+.player-logs-section {
+    flex: 1;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    padding: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.logs-grid {
+    display: grid;
+    gap: 10px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.logs-grid.players-1 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+}
+
+.logs-grid.players-2 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.logs-grid.players-3 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.logs-grid.players-3 .player-log-panel:last-child {
+    grid-column: span 2;
+}
+
+.logs-grid.players-4 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.player-log-panel {
+    background: var(--bg-primary);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.player-log-panel .log-title {
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.log-content {
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+/* Timeline Controls */
+.timeline-controls {
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.timeline-header span {
+    font-weight: 500;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.playback-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.control-btn {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--text-primary);
+    border-radius: 2px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.2s;
+}
+
+.control-btn:hover {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+}
+
+.speed-select {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.timeline-slider {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--bg-primary);
+    outline: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.timeline-slider::-webkit-slider-thumb:hover {
+    background: var(--text-primary);
+    transform: scale(1.2);
+}
+
+.timeline-labels {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    font-family: 'Courier New', monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}

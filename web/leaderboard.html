@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard - Maze Runner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <h1>Maze Runner</h1>
+            <div class="nav-links">
+                <a href="dashboard.html">Dashboard</a>
+                <a href="leaderboard.html" class="active">Leaderboard</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h2>Global Leaderboard</h2>
+            <p>Top players ranked by average score</p>
+        </div>
+
+        <div class="card">
+            <div id="leaderboard" class="leaderboard">
+                <p class="loading">Loading leaderboard...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="leaderboard.js"></script>
+</body>
+
+</html>

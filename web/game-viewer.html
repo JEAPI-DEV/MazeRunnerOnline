@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Runner - Game Viewer</title>
+    <link rel="stylesheet" href="game-viewer.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 id="maze-title">Maze Runner</h1>
+            <div id="turn-info" class="turn-info">Turn 1 / 1</div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Maze Grid -->
+            <div class="maze-section">
+                <div id="maze-container" class="maze-container">
+                    <canvas id="maze-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="right-panel">
+                <!-- Player Stats -->
+                <div class="player-stats-section">
+                    <h2>Players</h2>
+                    <div id="player-stats" class="player-stats"></div>
+                </div>
+
+                <!-- Player Logs -->
+                <div class="player-logs-section">
+                    <div class="logs-grid" id="logs-grid">
+                        <!-- Player logs will be dynamically generated -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Controls -->
+        <div class="timeline-controls">
+            <div class="timeline-header">
+                <span>Timeline</span>
+                <div class="playback-controls">
+                    <button id="play-pause-btn" class="control-btn" title="Play/Pause">▶</button>
+                    <button id="prev-btn" class="control-btn" title="Previous Turn">⏮</button>
+                    <button id="next-btn" class="control-btn" title="Next Turn">⏭</button>
+                    <label for="speed-control">Speed:</label>
+                    <select id="speed-control" class="speed-select">
+                        <option value="2000">0.5x</option>
+                        <option value="1000" selected>1x</option>
+                        <option value="500">2x</option>
+                        <option value="250">4x</option>
+                    </select>
+                </div>
+            </div>
+            <input type="range" id="timeline-slider" class="timeline-slider" min="0" max="0" value="0">
+            <div class="timeline-labels">
+                <span id="current-turn">Turn 0</span>
+                <span id="total-turns">/ 0</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="game-viewer.js"></script>
+    <script>
+        // Auto-load game data if available
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('game-data.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Game data not found');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Game data loaded successfully');
+                    loadGameFromJSON(data);
+                })
+                .catch(error => {
+                    console.log('No game data found. Waiting for data to be loaded...');
+                    console.log('You can load data manually using: loadGameFromJSON(data)');
+                });
+        });
+    </script>
+</body>
+
+</html>

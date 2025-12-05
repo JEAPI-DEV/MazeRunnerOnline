@@ -34,6 +34,7 @@ public class GameLauncher {
         int logging = 1, turninfo = 1, debug = 0;
         boolean gui = false;
         boolean web = false;
+        boolean server = false;
 
         try {
             for (int i = 0; i < args.length; i++) {
@@ -107,10 +108,19 @@ public class GameLauncher {
                     case "--web":
                         web = true;
                         break;
+                    case "--server":
+                        server = true;
+                        break;
                     default:
                         // Ignore unknown args or handle as needed
                         break;
                 }
+            }
+
+            // Server mode - launch server instead of running a game
+            if (server) {
+                launchServer();
+                return;
             }
 
             if (mapPath == null) {
@@ -130,9 +140,29 @@ public class GameLauncher {
 
     private static void printUsage() {
         System.out.println(
-                "Usage: java -jar MazeRunner.jar --map \"path/to/file\" --players <count> \"path/to/player/1\" ... --max-turns <count> --randomSpawn <0|1> --level <int> [--gui] [--web]");
+                "Usage: java -jar MazeRunner.jar --map \"path/to/file\" --players <count> \"path/to/player/1\" ... --max-turns <count> --randomSpawn <0|1> --level <int> [--gui] [--web] [--server]");
         System.out.println("  --gui: Launch Swing GUI viewer after game completion");
         System.out.println("  --web: Export game data and open web viewer in browser");
+        System.out.println("  --server: Launch server mode for online competitive play");
+    }
+
+    /**
+     * Launch server mode
+     */
+    private static void launchServer() {
+        try {
+            String configPath = "server.properties";
+            net.simplehardware.engine.server.ServerMode serverMode = new net.simplehardware.engine.server.ServerMode(
+                    configPath);
+            serverMode.start();
+
+            // Keep running
+            Thread.currentThread().join();
+        } catch (Exception e) {
+            System.err.println("Server error: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     public static void launchGame(String mazeFile, List<String> jarPaths, int maxTurns, boolean randomSpawn, int level,
