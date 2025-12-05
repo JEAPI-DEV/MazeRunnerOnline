@@ -21,7 +21,20 @@ public class PlayerProcess {
         this.playerId = playerId;
         this.executor = Executors.newFixedThreadPool(2);
 
-        ProcessBuilder pb = new ProcessBuilder("java", "-jar", jarPath);
+        // Use absolute path for policy file to ensure it's found
+        File policyFile = new File("bot.policy");
+        String policyPath = policyFile.getAbsolutePath();
+
+        // Ensure jar path is absolute for the policy property
+        String absJarPath = new File(jarPath).getAbsolutePath();
+
+        ProcessBuilder pb = new ProcessBuilder(
+                "java",
+                "-Djava.security.manager",
+                "-Djava.security.policy=" + policyPath,
+                "-Dbot.jar.path=" + absJarPath,
+                "-jar",
+                jarPath);
         // Don't redirect error stream - keep them separate
         this.process = pb.start();
 

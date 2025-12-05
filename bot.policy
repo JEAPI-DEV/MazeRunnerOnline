@@ -1,0 +1,13 @@
+grant codeBase "file:${java.home}/lib/-" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:${java.home}/lib/ext/-" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.util.PropertyPermission "*", "read";
+    permission java.io.FilePermission "${bot.jar.path}", "read";
+    permission java.io.FilePermission "${java.home}/-", "read";
+};
