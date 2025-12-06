@@ -45,7 +45,6 @@ public class GameExecutionService {
      * @return GameResult
      */
     public GameResult executeGame(int userId, int botId, int mazeId) throws Exception {
-        // Get bot and maze from database
         PlayerBot bot = db.getPlayerBotById(botId);
         net.simplehardware.engine.server.database.models.Maze mazeModel = db.getMazeById(mazeId);
 
@@ -62,62 +61,54 @@ public class GameExecutionService {
         System.out.println("Executing game for user " + userId + " with bot " + bot.getBotName() + " on maze "
                 + mazeModel.getName());
 
-        // Load maze data
         MazeInfoData mazeData;
         try (FileReader reader = new FileReader(mazeModel.getFilePath())) {
             mazeData = new Gson().fromJson(reader, MazeInfoData.class);
         }
 
-        // Create maze
         Maze maze = new Maze(mazeData);
 
-        // Create game configuration
         GameEngine.GameConfig config = new GameEngine.GameConfig();
         config.debug = 0;
         config.turnInfo = 0;
         config.leagueLevel = 5;
         config.logging = 0;
-        config.maxTurns = 500;
+        config.maxTurns = 5000;
         config.turnTimeoutMs = 500;
         config.firstTurnTimeoutMs = 1000;
         config.sheetsPerPlayer = 2;
 
-        // Create player list with single bot
         List<String> playerJars = new ArrayList<>();
         playerJars.add(bot.getJarPath());
 
-        // Create and run game engine
         GameEngine engine = new GameEngine(maze, playerJars, config);
         engine.setRandomSpawn(false);
         engine.initialize();
 
-        // Run game with timeout
-        Future<?> gameFuture = executor.submit(() -> engine.runGame());
+        Future<?> gameFuture = executor.submit(engine::runGame);
 
+        boolean timedOut = false;
         try {
             gameFuture.get(GAME_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             gameFuture.cancel(true);
-            throw new TimeoutException("Game execution timed out after " + GAME_TIMEOUT_SECONDS + " seconds");
+            timedOut = true;
+            System.out.println("Game timed out after " + GAME_TIMEOUT_SECONDS + " seconds");
         }
 
-        // Get game results from the last game state
         List<GameState> history = engine.getGameHistory();
         if (history.isEmpty()) {
             throw new IllegalStateException("No game history available");
         }
 
-        GameState finalState = history.get(history.size() - 1);
+        GameState finalState = history.getLast();
         int stepsTaken = finalState.getTurnNumber();
 
-        // Check if player finished by looking at the final state
         GameState.PlayerSnapshot playerSnapshot = finalState.getPlayers().get(1);
-        boolean completed = playerSnapshot != null && playerSnapshot.isFinished();
+        boolean completed = playerSnapshot != null && playerSnapshot.isFinished() && !timedOut;
 
-        // Calculate score
         double scorePercentage = calculateScore(stepsTaken, mazeModel.getMinSteps(), completed);
-
-        // Export game data for replay
+        // Export game data for replay (even if timed out, so user can review)
         String gameDataPath = gameDataDirectory + "/game_" + System.currentTimeMillis() + "_u" + userId + ".json";
         WebViewerExporter.exportToJSON(engine.getGameHistory(), mazeModel.getName(), gameDataPath);
 
@@ -131,7 +122,36 @@ public class GameExecutionService {
                 completed,
                 gameDataPath);
 
-        System.out.println("Game complete: " + (completed ? "FINISHED" : "INCOMPLETE") +
+
+        GameResult previousBest = db.getBestScoreForMaze(userId, mazeId);
+
+        if (previousBest != null && previousBest.getId() != result.getId()) {
+            boolean newIsBetter = result.getScorePercentage() > previousBest.getScorePercentage() ||
+                    (result.getScorePercentage() == previousBest.getScorePercentage() &&
+                            result.getStepsTaken() < previousBest.getStepsTaken());
+
+            if (newIsBetter) {
+                // Delete the old result
+                String oldFilePath = db.deleteGameResult(previousBest.getId());
+                if (oldFilePath != null) {
+                    java.io.File oldFile = new java.io.File(oldFilePath);
+                    if (oldFile.exists()) {
+                        oldFile.delete();
+                    }
+                }
+            } else {
+                String newFilePath = db.deleteGameResult(result.getId());
+                if (newFilePath != null) {
+                    java.io.File newFile = new java.io.File(newFilePath);
+                    if (newFile.exists()) {
+                        newFile.delete();
+                    }
+                }
+                result = previousBest;
+            }
+        }
+
+        System.out.println("Game complete: " + (completed ? "FINISHED" : timedOut ? "TIMED OUT" : "INCOMPLETE") +
                 ", Steps: " + stepsTaken + "/" + mazeModel.getMinSteps() +
                 ", Score: " + String.format("%.2f%%", scorePercentage));
 
@@ -140,13 +160,9 @@ public class GameExecutionService {
 
     /**
      * Calculate score based on steps taken vs minimum steps
-     * 
-     * Score formula:
+     * Score formula: (minSteps / stepsTaken) * 100
      * - Perfect (100%): steps == minSteps
-     * - Good (90-99%): steps <= minSteps * 1.1
-     * - Average (70-89%): steps <= minSteps * 1.5
-     * - Poor (50-69%): steps <= minSteps * 2.0
-     * - Very Poor (1-49%): steps > minSteps * 2.0
+     * - Efficiency decreases linearly as steps increase
      * - Failed (0%): Did not complete
      * 
      * @param stepsTaken Steps taken by the bot
@@ -163,15 +179,11 @@ public class GameExecutionService {
             return 100.0;
         }
 
-        // Calculate efficiency ratio
-        double ratio = (double) stepsTaken / minSteps;
+        // Calculate efficiency as (minSteps / stepsTaken) * 100
+        double score = ((double) minSteps / stepsTaken) * 100.0;
 
-        // Score decreases as ratio increases
-        // Using exponential decay for more gradual scoring
-        double score = 100.0 * Math.exp(-0.5 * (ratio - 1.0));
-
-        // Ensure score is between 1 and 100
-        return Math.max(1.0, Math.min(100.0, score));
+        // Ensure score doesn't exceed 100 (though it shouldn't with the above logic)
+        return Math.min(100.0, score);
     }
 
     /**

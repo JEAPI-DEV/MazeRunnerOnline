@@ -74,6 +74,13 @@ public class BotHandler {
                     return;
                 }
 
+                // Check if bot name already exists
+                if (db.checkBotNameExists(session.userId, botName)) {
+                    HandlerUtils.sendResponse(exchange, 409,
+                            Map.of("error", "Bot name '" + botName + "' is already in use"));
+                    return;
+                }
+
                 if (fileData == null || fileData.length == 0) {
                     HandlerUtils.sendResponse(exchange, 400, Map.of("error", "JAR file is required"));
                     return;
@@ -106,6 +113,7 @@ public class BotHandler {
                 response.put("success", true);
                 response.put("botId", bot.getId());
                 response.put("botName", bot.getBotName());
+                response.put("isDefault", bot.isDefault());
 
                 HandlerUtils.sendResponse(exchange, 201, response);
 
@@ -181,10 +189,117 @@ public class BotHandler {
                     botData.put("id", bot.getId());
                     botData.put("name", bot.getBotName());
                     botData.put("uploadedAt", bot.getUploadedAt().toString());
+                    botData.put("isDefault", bot.isDefault());
                     botList.add(botData);
                 }
 
                 HandlerUtils.sendResponse(exchange, 200, Map.of("bots", botList));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                HandlerUtils.sendResponse(exchange, 500, Map.of("error", "Internal server error: " + e.getMessage()));
+            }
+        }
+    }
+
+    /**
+     * Set default bot handler
+     */
+    public static class SetDefaultBotHandler implements HttpHandler {
+        private final DatabaseManager db;
+        private final SessionManager sessionManager;
+
+        public SetDefaultBotHandler(DatabaseManager db, SessionManager sessionManager) {
+            this.db = db;
+            this.sessionManager = sessionManager;
+        }
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                HandlerUtils.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
+                return;
+            }
+
+            try {
+                // Validate session
+                SessionManager.SessionData session = HandlerUtils.validateSession(exchange, sessionManager);
+                if (session == null) {
+                    HandlerUtils.sendResponse(exchange, 401, Map.of("error", "Unauthorized"));
+                    return;
+                }
+
+                // Parse request body
+                Map<String, Object> body = gson.fromJson(new InputStreamReader(exchange.getRequestBody()), Map.class);
+                if (!body.containsKey("botId")) {
+                    HandlerUtils.sendResponse(exchange, 400, Map.of("error", "botId is required"));
+                    return;
+                }
+
+                int botId = ((Double) body.get("botId")).intValue();
+
+                // Set default
+                db.setUserDefaultBot(session.userId, botId);
+
+                HandlerUtils.sendResponse(exchange, 200, Map.of("success", true));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                HandlerUtils.sendResponse(exchange, 500, Map.of("error", "Internal server error: " + e.getMessage()));
+            }
+        }
+    }
+
+    /**
+     * Delete bot handler
+     */
+    public static class DeleteBotHandler implements HttpHandler {
+        private final DatabaseManager db;
+        private final SessionManager sessionManager;
+
+        public DeleteBotHandler(DatabaseManager db, SessionManager sessionManager) {
+            this.db = db;
+            this.sessionManager = sessionManager;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                HandlerUtils.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
+                return;
+            }
+
+            try {
+                // Validate session
+                SessionManager.SessionData session = HandlerUtils.validateSession(exchange, sessionManager);
+                if (session == null) {
+                    HandlerUtils.sendResponse(exchange, 401, Map.of("error", "Unauthorized"));
+                    return;
+                }
+
+                // Parse request body
+                Map<String, Object> body = gson.fromJson(new InputStreamReader(exchange.getRequestBody()), Map.class);
+                if (!body.containsKey("botId")) {
+                    HandlerUtils.sendResponse(exchange, 400, Map.of("error", "botId is required"));
+                    return;
+                }
+
+                int botId = ((Double) body.get("botId")).intValue();
+
+                // Delete from DB and get file path
+                String filePath = db.deletePlayerBot(session.userId, botId);
+
+                if (filePath != null) {
+                    // Delete file
+                    File file = new File(filePath);
+                    if (file.exists()) {
+                        file.delete();
+                    }
+                    HandlerUtils.sendResponse(exchange, 200, Map.of("success", true));
+                } else {
+                    HandlerUtils.sendResponse(exchange, 404, Map.of("error", "Bot not found or not owned by user"));
+                }
 
             } catch (Exception e) {
                 e.printStackTrace();

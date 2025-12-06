@@ -77,8 +77,16 @@ class GameViewer {
     }
 
     loadGameData(gameData) {
-        this.gameHistory = gameData.gameHistory;
-        this.mazeName = gameData.mazeName || 'Unknown Maze';
+        // Parse compact format: {n: mazeName, h: history}
+        const rawHistory = gameData.h || gameData.gameHistory; // Support both formats
+        this.mazeName = gameData.n || gameData.mazeName || 'Unknown Maze';
+
+        // Convert compact format to expanded format
+        // Need to process sequentially for delta states
+        this.gameHistory = [];
+        for (let i = 0; i < rawHistory.length; i++) {
+            this.gameHistory.push(this.parseCompactState(rawHistory[i], i, this.gameHistory));
+        }
 
         if (this.gameHistory.length === 0) {
             console.error('Game history is empty');
@@ -102,6 +110,172 @@ class GameViewer {
 
         // Initial display
         this.updateDisplay();
+    }
+
+    parseCompactState(state, index, allStates) {
+        // Check if already in expanded format (old format)
+        if (state.turnNumber !== undefined) {
+            return state;
+        }
+
+        // Check if this is a delta state (has 't' property)
+        if (state.t !== undefined) {
+            // This is a delta state - reconstruct from previous state
+            const prevState = allStates[index - 1];
+            return this.applyDelta(prevState, state);
+        }
+
+        // Parse full compact array format: [turnNumber, width, height, players, cells, logs]
+        const [turnNumber, mazeWidth, mazeHeight, players, cells, logs] = state;
+
+        return {
+            turnNumber,
+            mazeWidth,
+            mazeHeight,
+            players: this.parseCompactPlayers(players),
+            cells: this.parseCompactCells(cells),
+            playerLogs: this.parseCompactLogs(logs)
+        };
+    }
+
+    applyDelta(prevState, delta) {
+        // Start with a copy of the previous state
+        const newState = {
+            turnNumber: delta.t,
+            mazeWidth: prevState.mazeWidth,
+            mazeHeight: prevState.mazeHeight,
+            players: JSON.parse(JSON.stringify(prevState.players)), // Deep copy
+            cells: prevState.cells.map(row => [...row]), // Deep copy
+            playerLogs: JSON.parse(JSON.stringify(prevState.playerLogs)) // Deep copy
+        };
+
+        // Apply player deltas
+        if (delta.p) {
+            for (const [id, playerArray] of Object.entries(delta.p)) {
+                const [playerId, x, y, score, formsCollected, formsRequired, active, finished] = playerArray;
+                newState.players[id] = {
+                    id: playerId,
+                    x,
+                    y,
+                    score,
+                    formsCollected,
+                    formsRequired,
+                    active: active === 1,
+                    finished: finished === 1
+                };
+            }
+        }
+
+        // Apply cell deltas
+        if (delta.c) {
+            for (const cellDelta of delta.c) {
+                const [x, y, cellStr] = cellDelta;
+                newState.cells[x][y] = this.parseCompactCell(cellStr, x, y);
+            }
+        }
+
+        // Apply log deltas
+        if (delta.l) {
+            for (const [id, logArray] of Object.entries(delta.l)) {
+                newState.playerLogs[id] = {
+                    stdout: logArray[0] || '',
+                    stderr: logArray[1] || ''
+                };
+            }
+        }
+
+        return newState;
+    }
+
+    parseCompactPlayers(players) {
+        const result = {};
+        for (const [id, playerArray] of Object.entries(players)) {
+            // Array format: [id, x, y, score, formsCollected, formsRequired, active, finished]
+            const [playerId, x, y, score, formsCollected, formsRequired, active, finished] = playerArray;
+            result[id] = {
+                id: playerId,
+                x,
+                y,
+                score,
+                formsCollected,
+                formsRequired,
+                active: active === 1,
+                finished: finished === 1
+            };
+        }
+        return result;
+    }
+
+    parseCompactCells(cells) {
+        const width = cells.length;
+        const height = cells[0].length;
+        const result = [];
+
+        for (let x = 0; x < width; x++) {
+            result[x] = [];
+            for (let y = 0; y < height; y++) {
+                result[x][y] = this.parseCompactCell(cells[x][y], x, y);
+            }
+        }
+
+        return result;
+    }
+
+    parseCompactCell(cellStr, x, y) {
+        // Parse compact string format: "type[,form[,owner]][,S][,F:playerId]"
+        const parts = cellStr.split(',');
+        const typeChar = parts[0];
+
+        const typeMap = { 'W': 'WALL', 'E': 'EMPTY', 'F': 'FLOOR', 'N': 'FINISH', 'S': 'START' };
+        const type = typeMap[typeChar] || 'EMPTY';
+
+        const cell = {
+            type,
+            x,
+            y,
+            form: null,
+            formOwner: null,
+            hasSheet: false,
+            finishPlayerId: null
+        };
+
+        // Parse form if present
+        if (parts.length > 1 && parts[1]) {
+            cell.form = parts[1];
+        }
+
+        // Parse form owner if present
+        if (parts.length > 2 && parts[2]) {
+            cell.formOwner = parseInt(parts[2]);
+        }
+
+        // Check for sheet marker
+        if (parts.includes('S')) {
+            cell.hasSheet = true;
+        }
+
+        // Check for finish player ID
+        for (const part of parts) {
+            if (part && part.startsWith('F:')) {
+                cell.finishPlayerId = parseInt(part.substring(2));
+            }
+        }
+
+        return cell;
+    }
+
+    parseCompactLogs(logs) {
+        if (!logs) return {};
+
+        const result = {};
+        for (const [id, logArray] of Object.entries(logs)) {
+            // Array format: [stdout, stderr]
+            result[id] = {
+                stdout: logArray[0] || '',
+                stderr: logArray[1] || ''
+            };
+        }
+        return result;
     }
 
     setupCanvas(width, height) {

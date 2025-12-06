@@ -11,16 +11,23 @@ public class PlayerBot {
     private String botName;
     private String jarPath;
     private Timestamp uploadedAt;
+    private boolean isDefault;
 
     public PlayerBot() {
     }
 
-    public PlayerBot(int id, int userId, String botName, String jarPath, Timestamp uploadedAt) {
+    public PlayerBot(int id, int userId, String botName, String jarPath, Timestamp uploadedAt, boolean isDefault) {
         this.id = id;
         this.userId = userId;
         this.botName = botName;
         this.jarPath = jarPath;
         this.uploadedAt = uploadedAt;
+        this.isDefault = isDefault;
+    }
+
+    // Constructor for backward compatibility or when isDefault is not yet known
+    public PlayerBot(int id, int userId, String botName, String jarPath, Timestamp uploadedAt) {
+        this(id, userId, botName, jarPath, uploadedAt, false);
     }
 
     public int getId() {
@@ -63,6 +70,14 @@ public class PlayerBot {
         this.uploadedAt = uploadedAt;
     }
 
+    public boolean isDefault() {
+        return isDefault;
+    }
+
+    public void setDefault(boolean isDefault) {
+        this.isDefault = isDefault;
+    }
+
     @Override
     public String toString() {
         return "PlayerBot{" +
@@ -71,6 +86,7 @@ public class PlayerBot {
                 ", botName='" + botName + '\'' +
                 ", jarPath='" + jarPath + '\'' +
                 ", uploadedAt=" + uploadedAt +
+                ", isDefault=" + isDefault +
                 '}';
     }
 }

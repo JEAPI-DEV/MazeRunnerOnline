@@ -52,11 +52,11 @@ public class GameHandler {
                     return;
                 }
 
-                // Get user's latest bot
-                PlayerBot bot = db.getUserLatestBot(session.userId);
+                // Get user's default bot
+                PlayerBot bot = db.getUserDefaultBot(session.userId);
                 if (bot == null) {
                     HandlerUtils.sendResponse(exchange, 400,
-                            Map.of("error", "No bot uploaded. Please upload a bot first."));
+                            Map.of("error", "No default bot selected. Please upload and select a bot first."));
                     return;
                 }
 
@@ -74,12 +74,23 @@ public class GameHandler {
                 }
 
                 // Get active mazes (filtered by difficulty if specified)
-                List<Maze> activeMazes = db.getActiveMazes();
-                if (difficulty != null) {
-                    final String filterDifficulty = difficulty;
-                    activeMazes = activeMazes.stream()
-                            .filter(m -> m.getDifficulty().name().equals(filterDifficulty))
-                            .toList();
+                List<Maze> activeMazes;
+
+                // First, try to get unplayed mazes
+                List<Maze> unplayedMazes = db.getUnplayedMazes(session.userId, difficulty);
+
+                if (!unplayedMazes.isEmpty()) {
+                    // Prioritize unplayed mazes
+                    activeMazes = unplayedMazes;
+                } else {
+                    // All mazes have been played, select from all active mazes
+                    activeMazes = db.getActiveMazes();
+                    if (difficulty != null) {
+                        final String filterDifficulty = difficulty;
+                        activeMazes = activeMazes.stream()
+                                .filter(m -> m.getDifficulty().name().equals(filterDifficulty))
+                                .toList();
+                    }
                 }
 
                 if (activeMazes.isEmpty()) {

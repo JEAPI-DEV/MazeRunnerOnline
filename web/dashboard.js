@@ -61,11 +61,16 @@ async function loadBots() {
 
         if (response.ok && data.bots && data.bots.length > 0) {
             botsList.innerHTML = data.bots.map(bot => `
-                <div class="bot-item">
+                <div class="bot-item ${bot.isDefault ? 'default' : 'inactive'}" onclick="setDefaultBot(${bot.id})">
                     <div class="bot-info">
-                        <h4>${bot.name}</h4>
+                        <h4>${bot.name} ${bot.isDefault ? '<span class="badge">Default</span>' : ''}</h4>
                         <p>Uploaded: ${new Date(bot.uploadedAt).toLocaleString()}</p>
                     </div>
+                    <button class="btn-delete" onclick="deleteBot(event, ${bot.id})" title="Delete Bot">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        </svg>
+                    </button>
                 </div>
             `).join('');
         } else {
@@ -73,6 +78,55 @@ async function loadBots() {
         }
     } catch (error) {
         document.getElementById('botsList').innerHTML = '<p class="loading">Error loading bots</p>';
+    }
+}
+
+// Set default bot
+async function setDefaultBot(botId) {
+    try {
+        const response = await fetch(`${API_BASE}/bot/default`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ botId: botId })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            loadBots(); // Reload to update UI
+        } else {
+            showNotification(data.error || 'Failed to set default bot', 'error');
+        }
+    } catch (error) {
+        showNotification('Network error: ' + error.message, 'error');
+    }
+}
+
+// Delete bot
+async function deleteBot(event, botId) {
+    event.stopPropagation(); // Prevent triggering selection
+
+    if (!confirm('Are you sure you want to delete this bot?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/bot/delete`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ botId: botId })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showNotification('Bot deleted successfully');
+            loadBots();
+        } else {
+            showNotification(data.error || 'Failed to delete bot', 'error');
+        }
+    } catch (error) {
+        showNotification('Network error: ' + error.message, 'error');
     }
 }
 

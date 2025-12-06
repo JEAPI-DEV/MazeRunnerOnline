@@ -1,24 +1,26 @@
 package net.simplehardware.engine.viewer;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import net.simplehardware.engine.viewer.elements.CellSnapshot;
 import net.simplehardware.engine.viewer.elements.GameState;
 import net.simplehardware.engine.viewer.elements.PlayerLog;
 
+import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Utility class to export game history to JSON format for the web viewer
+ * Utility class to export game history to compact JSON format with delta
+ * encoding
  */
 public class WebViewerExporter {
 
     /**
-     * Export game history to a JSON file for the web viewer
+     * Export game history to a compact JSON file with delta encoding
      * 
      * @param gameHistory List of game states
      * @param mazeName    Name of the maze
@@ -28,61 +30,187 @@ public class WebViewerExporter {
     public static void exportToJSON(List<GameState> gameHistory, String mazeName, String outputPath)
             throws IOException {
         Map<String, Object> data = new HashMap<>();
-        data.put("mazeName", mazeName);
-        data.put("gameHistory", convertGameHistory(gameHistory));
+        data.put("n", mazeName);
+        data.put("h", convertGameHistoryWithDeltas(gameHistory));
 
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        // Use compact JSON (no pretty printing)
+        Gson gson = new Gson();
         String json = gson.toJson(data);
 
-        try (FileWriter writer = new FileWriter(outputPath)) {
+        // Use BufferedWriter with explicit flush to ensure complete writes
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath))) {
             writer.write(json);
+            writer.flush();
         }
 
-        System.out.println("Game data exported to: " + outputPath);
+        System.out.println("Game data exported to: " + outputPath + " (" + json.length() + " bytes)");
     }
 
-    private static List<Map<String, Object>> convertGameHistory(List<GameState> gameHistory) {
-        return gameHistory.stream().map(WebViewerExporter::convertGameState).toList();
-    }
+    private static List<Object> convertGameHistoryWithDeltas(List<GameState> gameHistory) {
+        List<Object> result = new ArrayList<>();
 
-    private static Map<String, Object> convertGameState(GameState state) {
-        Map<String, Object> stateMap = new HashMap<>();
-        stateMap.put("turnNumber", state.getTurnNumber());
-        stateMap.put("mazeWidth", state.getMazeWidth());
-        stateMap.put("mazeHeight", state.getMazeHeight());
-        stateMap.put("players", convertPlayers(state.getPlayers()));
-        stateMap.put("cells", convertCells(state.getCells()));
-        stateMap.put("playerLogs", convertPlayerLogs(state.getPlayerLogs()));
+        if (gameHistory.isEmpty()) {
+            return result;
+        }
 
-        return stateMap;
-    }
+        // First state is always full
+        GameState firstState = gameHistory.get(0);
+        result.add(convertGameStateFull(firstState));
 
-    private static Map<Integer, Map<String, Object>> convertPlayers(Map<Integer, GameState.PlayerSnapshot> players) {
-        Map<Integer, Map<String, Object>> result = new HashMap<>();
-
-        for (Map.Entry<Integer, GameState.PlayerSnapshot> entry : players.entrySet()) {
-            GameState.PlayerSnapshot player = entry.getValue();
-            Map<String, Object> playerMap = new HashMap<>();
-
-            playerMap.put("id", player.getId());
-            playerMap.put("x", player.getX());
-            playerMap.put("y", player.getY());
-            playerMap.put("score", player.getScore());
-            playerMap.put("formsCollected", player.getFormsCollected());
-            playerMap.put("formsRequired", player.getFormsRequired());
-            playerMap.put("active", player.isActive());
-            playerMap.put("finished", player.isFinished());
-
-            result.put(entry.getKey(), playerMap);
+        // Subsequent states use delta encoding
+        for (int i = 1; i < gameHistory.size(); i++) {
+            GameState prevState = gameHistory.get(i - 1);
+            GameState currState = gameHistory.get(i);
+            result.add(convertGameStateDelta(prevState, currState));
         }
 
         return result;
     }
 
-    private static CellData[][] convertCells(CellSnapshot[][] cells) {
+    private static Object[] convertGameStateFull(GameState state) {
+        // Full state: [turnNumber, width, height, players, cells, logs]
+        return new Object[] {
+                state.getTurnNumber(),
+                state.getMazeWidth(),
+                state.getMazeHeight(),
+                convertPlayers(state.getPlayers()),
+                convertCells(state.getCells()),
+                convertPlayerLogs(state.getPlayerLogs())
+        };
+    }
+
+    private static Object convertGameStateDelta(GameState prevState, GameState currState) {
+        // Delta state: [turnNumber, playerDeltas, cellDeltas, logDeltas]
+        Map<String, Object> delta = new HashMap<>();
+        delta.put("t", currState.getTurnNumber());
+
+        // Only include changed players
+        Map<Integer, Object[]> playerDeltas = getPlayerDeltas(prevState.getPlayers(), currState.getPlayers());
+        if (!playerDeltas.isEmpty()) {
+            delta.put("p", playerDeltas);
+        }
+
+        // Only include changed cells
+        List<Object[]> cellDeltas = getCellDeltas(prevState.getCells(), currState.getCells());
+        if (!cellDeltas.isEmpty()) {
+            delta.put("c", cellDeltas);
+        }
+
+        // Only include changed logs
+        Map<Integer, String[]> logDeltas = getLogDeltas(prevState.getPlayerLogs(), currState.getPlayerLogs());
+        if (!logDeltas.isEmpty()) {
+            delta.put("l", logDeltas);
+        }
+
+        return delta;
+    }
+
+    private static Map<Integer, Object[]> getPlayerDeltas(
+            Map<Integer, GameState.PlayerSnapshot> prev,
+            Map<Integer, GameState.PlayerSnapshot> curr) {
+        Map<Integer, Object[]> deltas = new HashMap<>();
+
+        for (Map.Entry<Integer, GameState.PlayerSnapshot> entry : curr.entrySet()) {
+            int id = entry.getKey();
+            GameState.PlayerSnapshot currPlayer = entry.getValue();
+            GameState.PlayerSnapshot prevPlayer = prev.get(id);
+
+            if (prevPlayer == null || !playersEqual(prevPlayer, currPlayer)) {
+                deltas.put(id, new Object[] {
+                        currPlayer.getId(),
+                        currPlayer.getX(),
+                        currPlayer.getY(),
+                        currPlayer.getScore(),
+                        currPlayer.getFormsCollected(),
+                        currPlayer.getFormsRequired(),
+                        currPlayer.isActive() ? 1 : 0,
+                        currPlayer.isFinished() ? 1 : 0
+                });
+            }
+        }
+
+        return deltas;
+    }
+
+    private static boolean playersEqual(GameState.PlayerSnapshot p1, GameState.PlayerSnapshot p2) {
+        return p1.getX() == p2.getX() &&
+                p1.getY() == p2.getY() &&
+                p1.getScore() == p2.getScore() &&
+                p1.getFormsCollected() == p2.getFormsCollected() &&
+                p1.isActive() == p2.isActive() &&
+                p1.isFinished() == p2.isFinished();
+    }
+
+    private static List<Object[]> getCellDeltas(CellSnapshot[][] prev, CellSnapshot[][] curr) {
+        List<Object[]> deltas = new ArrayList<>();
+        int width = curr.length;
+        int height = curr[0].length;
+
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                String prevCell = convertCell(prev[x][y]);
+                String currCell = convertCell(curr[x][y]);
+
+                if (!prevCell.equals(currCell)) {
+                    // Delta format: [x, y, cellString]
+                    deltas.add(new Object[] { x, y, currCell });
+                }
+            }
+        }
+
+        return deltas;
+    }
+
+    private static Map<Integer, String[]> getLogDeltas(
+            Map<Integer, PlayerLog> prev,
+            Map<Integer, PlayerLog> curr) {
+        Map<Integer, String[]> deltas = new HashMap<>();
+
+        for (Map.Entry<Integer, PlayerLog> entry : curr.entrySet()) {
+            int id = entry.getKey();
+            PlayerLog currLog = entry.getValue();
+            PlayerLog prevLog = prev.get(id);
+
+            String currStdout = currLog.getStdout();
+            String currStderr = currLog.getStderr();
+            String prevStdout = prevLog != null ? prevLog.getStdout() : "";
+            String prevStderr = prevLog != null ? prevLog.getStderr() : "";
+
+            if (!currStdout.equals(prevStdout) || !currStderr.equals(prevStderr)) {
+                if ((currStdout != null && !currStdout.isEmpty()) ||
+                        (currStderr != null && !currStderr.isEmpty())) {
+                    deltas.put(id, new String[] { currStdout, currStderr });
+                }
+            }
+        }
+
+        return deltas;
+    }
+
+    private static Map<Integer, Object[]> convertPlayers(Map<Integer, GameState.PlayerSnapshot> players) {
+        Map<Integer, Object[]> result = new HashMap<>();
+
+        for (Map.Entry<Integer, GameState.PlayerSnapshot> entry : players.entrySet()) {
+            GameState.PlayerSnapshot p = entry.getValue();
+            result.put(entry.getKey(), new Object[] {
+                    p.getId(),
+                    p.getX(),
+                    p.getY(),
+                    p.getScore(),
+                    p.getFormsCollected(),
+                    p.getFormsRequired(),
+                    p.isActive() ? 1 : 0,
+                    p.isFinished() ? 1 : 0
+            });
+        }
+
+        return result;
+    }
+
+    private static String[][] convertCells(CellSnapshot[][] cells) {
         int width = cells.length;
         int height = cells[0].length;
-        CellData[][] result = new CellData[width][height];
+        String[][] result = new String[width][height];
 
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
@@ -93,44 +221,48 @@ public class WebViewerExporter {
         return result;
     }
 
-    private static CellData convertCell(CellSnapshot cell) {
-        CellData data = new CellData();
-        data.type = cell.getType().name();
-        data.x = cell.getX();
-        data.y = cell.getY();
-        data.form = cell.getForm();
-        data.formOwner = cell.getFormOwner();
-        data.hasSheet = cell.hasSheet();
-        data.finishPlayerId = cell.getFinishPlayerId();
+    private static String convertCell(CellSnapshot cell) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(cell.getType().name().charAt(0));
 
-        return data;
+        if (cell.getForm() != null) {
+            sb.append(',').append(cell.getForm());
+            if (cell.getFormOwner() != null) {
+                sb.append(',').append(cell.getFormOwner());
+            } else {
+                sb.append(',');
+            }
+        }
+
+        if (cell.hasSheet()) {
+            if (cell.getForm() == null)
+                sb.append(",,");
+            sb.append(",S");
+        }
+
+        if (cell.getFinishPlayerId() != null) {
+            if (cell.getForm() == null && !cell.hasSheet())
+                sb.append(",,");
+            if (!cell.hasSheet())
+                sb.append(',');
+            sb.append(",F:").append(cell.getFinishPlayerId());
+        }
+
+        return sb.toString();
     }
 
-    private static Map<Integer, Map<String, String>> convertPlayerLogs(Map<Integer, PlayerLog> playerLogs) {
-        Map<Integer, Map<String, String>> result = new HashMap<>();
+    private static Map<Integer, String[]> convertPlayerLogs(Map<Integer, PlayerLog> playerLogs) {
+        Map<Integer, String[]> result = new HashMap<>();
 
         for (Map.Entry<Integer, PlayerLog> entry : playerLogs.entrySet()) {
             PlayerLog log = entry.getValue();
-            Map<String, String> logMap = new HashMap<>();
-            logMap.put("stdout", log.getStdout());
-            logMap.put("stderr", log.getStderr());
-
-            result.put(entry.getKey(), logMap);
+            String stdout = log.getStdout();
+            String stderr = log.getStderr();
+            if ((stdout != null && !stdout.isEmpty()) || (stderr != null && !stderr.isEmpty())) {
+                result.put(entry.getKey(), new String[] { stdout, stderr });
+            }
         }
 
         return result;
-    }
-
-    /**
-     * Helper class for JSON serialization of cell data
-     */
-    private static class CellData {
-        String type;
-        int x;
-        int y;
-        Character form;
-        Integer formOwner;
-        boolean hasSheet;
-        Integer finishPlayerId;
     }
 }

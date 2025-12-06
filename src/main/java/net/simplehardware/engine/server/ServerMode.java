@@ -60,6 +60,8 @@ public class ServerMode {
         server.createContext("/api/logout", new AuthHandler.LogoutHandler());
         server.createContext("/api/upload-bot", new BotHandler.UploadBotHandler(db, sessionManager, config));
         server.createContext("/api/user/bots", new BotHandler.ListBotsHandler(db, sessionManager));
+        server.createContext("/api/bot/default", new BotHandler.SetDefaultBotHandler(db, sessionManager));
+        server.createContext("/api/bot/delete", new BotHandler.DeleteBotHandler(db, sessionManager));
         server.createContext("/api/play",
                 new GameHandler.PlayGameHandler(db, sessionManager, mazeService, gameService));
         server.createContext("/api/game-result", new GameHandler.GameResultHandler(db, sessionManager));

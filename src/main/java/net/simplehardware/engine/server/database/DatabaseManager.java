@@ -36,6 +36,26 @@ public class DatabaseManager {
         executeSchema();
 
         System.out.println("Database initialized: " + dbPath);
+
+        // Run migrations
+        runMigrations();
+    }
+
+    private void runMigrations() throws SQLException {
+        // Check if is_default column exists in player_bots
+        boolean hasIsDefault = false;
+        try (ResultSet rs = connection.getMetaData().getColumns(null, null, "player_bots", "is_default")) {
+            if (rs.next()) {
+                hasIsDefault = true;
+            }
+        }
+
+        if (!hasIsDefault) {
+            System.out.println("Migrating: Adding is_default column to player_bots");
+            try (Statement stmt = connection.createStatement()) {
+                stmt.execute("ALTER TABLE player_bots ADD COLUMN is_default BOOLEAN DEFAULT 0");
+            }
+        }
     }
 
     /**
@@ -156,12 +176,16 @@ public class DatabaseManager {
      * Create a new player bot
      */
     public PlayerBot createPlayerBot(int userId, String botName, String jarPath) throws SQLException {
-        String sql = "INSERT INTO player_bots (user_id, bot_name, jar_path) VALUES (?, ?, ?)";
+        // Check if this is the first bot for the user, if so make it default
+        boolean isFirstBot = getUserBots(userId).isEmpty();
+
+        String sql = "INSERT INTO player_bots (user_id, bot_name, jar_path, is_default) VALUES (?, ?, ?, ?)";
 
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, userId);
             pstmt.setString(2, botName);
             pstmt.setString(3, jarPath);
+            pstmt.setBoolean(4, isFirstBot);
             pstmt.executeUpdate();
 
             // SQLite doesn't support getGeneratedKeys(), use last_insert_rowid()
@@ -191,7 +215,8 @@ public class DatabaseManager {
                         rs.getInt("user_id"),
                         rs.getString("bot_name"),
                         rs.getString("jar_path"),
-                        rs.getTimestamp("uploaded_at"));
+                        rs.getTimestamp("uploaded_at"),
+                        rs.getBoolean("is_default"));
             }
         }
         return null;
@@ -214,7 +239,8 @@ public class DatabaseManager {
                         rs.getInt("user_id"),
                         rs.getString("bot_name"),
                         rs.getString("jar_path"),
-                        rs.getTimestamp("uploaded_at")));
+                        rs.getTimestamp("uploaded_at"),
+                        rs.getBoolean("is_default")));
             }
         }
         return bots;
@@ -240,6 +266,96 @@ public class DatabaseManager {
             }
         }
         return null;
+    }
+
+    /**
+     * Set a bot as default for a user
+     */
+    public void setUserDefaultBot(int userId, int botId) throws SQLException {
+        boolean autoCommit = connection.getAutoCommit();
+        try {
+            connection.setAutoCommit(false);
+
+            String resetSql = "UPDATE player_bots SET is_default = 0 WHERE user_id = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(resetSql)) {
+                pstmt.setInt(1, userId);
+                pstmt.executeUpdate();
+            }
+
+            String setSql = "UPDATE player_bots SET is_default = 1 WHERE id = ? AND user_id = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(setSql)) {
+                pstmt.setInt(1, botId);
+                pstmt.setInt(2, userId);
+                pstmt.executeUpdate();
+            }
+
+            connection.commit();
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(autoCommit);
+        }
+    }
+
+
+    public PlayerBot getUserDefaultBot(int userId) throws SQLException {
+        String sql = "SELECT * FROM player_bots WHERE user_id = ? AND is_default = 1";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return new PlayerBot(
+                        rs.getInt("id"),
+                        rs.getInt("user_id"),
+                        rs.getString("bot_name"),
+                        rs.getString("jar_path"),
+                        rs.getTimestamp("uploaded_at"),
+                        rs.getBoolean("is_default"));
+            }
+        }
+        return null;
+    }
+
+    public String deletePlayerBot(int userId, int botId) throws SQLException {
+        PlayerBot bot = getPlayerBotById(botId);
+        if (bot == null || bot.getUserId() != userId) {
+            return null;
+        }
+
+        boolean wasDefault = bot.isDefault();
+
+        String sql = "DELETE FROM player_bots WHERE id = ? AND user_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, botId);
+            pstmt.setInt(2, userId);
+            int affected = pstmt.executeUpdate();
+
+            if (affected > 0) {
+                // If we deleted the default bot, try to make another one default
+                if (wasDefault) {
+                    PlayerBot latest = getUserLatestBot(userId);
+                    if (latest != null) {
+                        setUserDefaultBot(userId, latest.getId());
+                    }
+                }
+                return bot.getJarPath();
+            }
+        }
+        return null;
+    }
+
+    public boolean checkBotNameExists(int userId, String botName) throws SQLException {
+        String sql = "SELECT 1 FROM player_bots WHERE user_id = ? AND bot_name = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.setString(2, botName);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        }
     }
 
     // ==================== MAZE OPERATIONS ====================
@@ -336,6 +452,43 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Get mazes that a user has not played yet
+     */
+    public List<Maze> getUnplayedMazes(int userId, String difficulty) throws SQLException {
+        String sql = "SELECT m.* FROM mazes m " +
+                "LEFT JOIN game_results gr ON m.id = gr.maze_id AND gr.user_id = ? " +
+                "WHERE m.active = 1 AND gr.id IS NULL";
+
+        if (difficulty != null) {
+            sql += " AND m.difficulty = ?";
+        }
+
+        List<Maze> mazes = new ArrayList<>();
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            if (difficulty != null) {
+                pstmt.setString(2, difficulty);
+            }
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                mazes.add(new Maze(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getString("file_path"),
+                        rs.getInt("min_steps"),
+                        rs.getInt("forms"),
+                        rs.getInt("size"),
+                        Maze.Difficulty.valueOf(rs.getString("difficulty")),
+                        rs.getTimestamp("created_at"),
+                        rs.getBoolean("active")));
+            }
+        }
+        return mazes;
+    }
+
     // ==================== GAME RESULT OPERATIONS ====================
 
     /**
@@ -422,11 +575,53 @@ public class DatabaseManager {
         return results;
     }
 
-    // ==================== LEADERBOARD OPERATIONS ====================
-
     /**
-     * Get global leaderboard
+     * Get the best game result for a user on a specific maze
      */
+    public GameResult getBestScoreForMaze(int userId, int mazeId) throws SQLException {
+        String sql = "SELECT * FROM game_results " +
+                "WHERE user_id = ? AND maze_id = ? " +
+                "ORDER BY score_percentage DESC, steps_taken ASC LIMIT 1";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, mazeId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return new GameResult(
+                        rs.getInt("id"),
+                        rs.getInt("user_id"),
+                        rs.getInt("bot_id"),
+                        rs.getInt("maze_id"),
+                        rs.getInt("steps_taken"),
+                        rs.getDouble("score_percentage"),
+                        rs.getBoolean("completed"),
+                        rs.getString("game_data_path"),
+                        rs.getTimestamp("played_at"));
+            }
+        }
+        return null;
+    }
+
+    public String deleteGameResult(int gameResultId) throws SQLException {
+        GameResult result = getGameResultById(gameResultId);
+        if (result == null) {
+            return null;
+        }
+
+        String sql = "DELETE FROM game_results WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, gameResultId);
+            int affected = pstmt.executeUpdate();
+
+            if (affected > 0) {
+                return result.getGameDataPath();
+            }
+        }
+        return null;
+    }
+
     public List<LeaderboardEntry> getLeaderboard(int limit) throws SQLException {
         String sql = "SELECT * FROM leaderboard LIMIT ?";
         List<LeaderboardEntry> entries = new ArrayList<>();

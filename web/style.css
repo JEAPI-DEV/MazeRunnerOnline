@@ -337,6 +337,7 @@ body {
 /* Bots List */
 .bots-list {
     display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 15px;
 }
 
@@ -348,11 +349,63 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    align-items: center;
     transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
 }
 
 .bot-item:hover {
     border-color: var(--text-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.bot-item.default {
+    border-color: var(--accent-primary);
+    background: rgba(89, 131, 146, 0.1);
+    opacity: 1;
+}
+
+.bot-item.inactive {
+    opacity: 0.6;
+    filter: grayscale(0.5);
+}
+
+.bot-item.inactive:hover {
+    opacity: 0.9;
+    filter: grayscale(0);
+}
+
+.badge {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    font-size: 0.7em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-delete {
+    background: transparent;
+    border: none;
+    color: var(--error);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+}
+
+.btn-delete:hover {
+    background: rgba(229, 115, 115, 0.1);
+    opacity: 1;
 }
 
 .bot-info h4 {
