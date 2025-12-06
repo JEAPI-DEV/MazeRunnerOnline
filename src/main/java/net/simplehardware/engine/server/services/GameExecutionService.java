@@ -4,6 +4,8 @@ import net.simplehardware.engine.core.GameEngine;
 import net.simplehardware.engine.game.Maze;
 import net.simplehardware.engine.server.database.DatabaseManager;
 import net.simplehardware.engine.server.database.models.GameResult;
+import net.simplehardware.engine.server.database.models.Lobby;
+import net.simplehardware.engine.server.database.models.LobbyPlayer;
 import net.simplehardware.engine.server.database.models.PlayerBot;
 import net.simplehardware.engine.viewer.WebViewerExporter;
 import net.simplehardware.engine.viewer.elements.GameState;
@@ -13,7 +15,9 @@ import com.google.gson.Gson;
 import java.io.FileReader;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 /**
@@ -122,7 +126,6 @@ public class GameExecutionService {
                 completed,
                 gameDataPath);
 
-
         GameResult previousBest = db.getBestScoreForMaze(userId, mazeId);
 
         if (previousBest != null && previousBest.getId() != result.getId()) {
@@ -184,6 +187,114 @@ public class GameExecutionService {
 
         // Ensure score doesn't exceed 100 (though it shouldn't with the above logic)
         return Math.min(100.0, score);
+    }
+
+    public Map<String, Object> executeMultiplayerGame(int lobbyId) throws Exception {
+        Lobby lobby = db.getLobby(lobbyId);
+        if (lobby == null) {
+            throw new IllegalArgumentException("Lobby not found");
+        }
+
+        List<LobbyPlayer> lobbyPlayers = db.getLobbyPlayers(lobbyId);
+        if (lobbyPlayers.isEmpty()) {
+            throw new IllegalStateException("No players in lobby");
+        }
+
+        net.simplehardware.engine.server.database.models.Maze mazeModel = db.getMazeById(lobby.getMazeId());
+        if (mazeModel == null) {
+            throw new IllegalArgumentException("Maze not found");
+        }
+
+        System.out.println(
+                "Executing multiplayer game for lobby " + lobbyId + " with " + lobbyPlayers.size() + " players");
+
+        MazeInfoData mazeData;
+        try (FileReader reader = new FileReader(mazeModel.getFilePath())) {
+            mazeData = new Gson().fromJson(reader, MazeInfoData.class);
+        }
+
+        Maze maze = new Maze(mazeData);
+
+        GameEngine.GameConfig config = new GameEngine.GameConfig();
+        config.debug = 0;
+        config.turnInfo = 0;
+        config.maxTurns = 1000;
+        config.turnTimeoutMs = 100;
+        config.firstTurnTimeoutMs = 1000;
+        config.sheetsPerPlayer = 2;
+
+        List<String> playerJars = new ArrayList<>();
+        for (LobbyPlayer lp : lobbyPlayers) {
+            PlayerBot bot = db.getPlayerBotById(lp.getBotId());
+            if (bot != null) {
+                playerJars.add(bot.getJarPath());
+            }
+        }
+
+        GameEngine engine = new GameEngine(maze, playerJars, config);
+        engine.setRandomSpawn(false);
+        engine.initialize();
+
+        Future<?> gameFuture = executor.submit(engine::runGame);
+
+        boolean timedOut = false;
+        try {
+            gameFuture.get(GAME_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            gameFuture.cancel(true);
+            timedOut = true;
+            System.out.println("Multiplayer game timed out after " + GAME_TIMEOUT_SECONDS + " seconds");
+        }
+
+        List<GameState> history = engine.getGameHistory();
+        if (history.isEmpty()) {
+            throw new IllegalStateException("No game history available");
+        }
+
+        GameState finalState = history.getLast();
+        int stepsTaken = finalState.getTurnNumber();
+
+        String gameDataPath = gameDataDirectory + "/game_" + System.currentTimeMillis() + "_lobby" + lobbyId + ".json";
+        WebViewerExporter.exportToJSON(engine.getGameHistory(), mazeModel.getName(), gameDataPath);
+
+        Map<Integer, GameResult> playerResults = new HashMap<>();
+        int firstGameResultId = -1;
+        for (int i = 0; i < lobbyPlayers.size(); i++) {
+            LobbyPlayer lp = lobbyPlayers.get(i);
+            int playerId = i + 1;
+
+            GameState.PlayerSnapshot playerSnapshot = finalState.getPlayers().get(playerId);
+            boolean completed = playerSnapshot != null && playerSnapshot.isFinished() && !timedOut;
+            double scorePercentage = calculateScore(stepsTaken, mazeModel.getMinSteps(), completed);
+
+            GameResult result = db.createGameResult(
+                    lp.getUserId(),
+                    lp.getBotId(),
+                    lobby.getMazeId(),
+                    stepsTaken,
+                    scorePercentage,
+                    completed,
+                    gameDataPath);
+
+            playerResults.put(lp.getUserId(), result);
+            if (firstGameResultId == -1) {
+                firstGameResultId = result.getId(); // Assuming GameResult has an getId() method
+            }
+        }
+
+        db.updateLobbyStatus(lobbyId, "FINISHED");
+        if (firstGameResultId != -1) {
+            db.updateLobbyLastGameId(lobbyId, firstGameResultId); // Link game to lobby
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("lobbyId", lobbyId);
+        response.put("gameDataPath", gameDataPath);
+        response.put("stepsTaken", stepsTaken);
+        response.put("timedOut", timedOut);
+        response.put("results", playerResults);
+
+        return response;
     }
 
     /**

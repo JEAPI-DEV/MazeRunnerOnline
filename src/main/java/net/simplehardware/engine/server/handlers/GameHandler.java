@@ -203,8 +203,21 @@ public class GameHandler {
                     return;
                 }
 
+                // Get type from query
+                String type = "SINGLEPLAYER";
+                String query = exchange.getRequestURI().getQuery();
+                if (query != null) {
+                    String[] params = query.split("&");
+                    for (String param : params) {
+                        String[] keyValue = param.split("=");
+                        if (keyValue.length == 2 && "type".equals(keyValue[0])) {
+                            type = keyValue[1].toUpperCase();
+                        }
+                    }
+                }
+
                 // Get user's game history
-                List<GameResult> history = db.getUserGameHistory(session.userId, 50);
+                List<GameResult> history = db.getUserGameHistory(session.userId, 50, type);
 
                 // Convert to response format
                 List<Map<String, Object>> gameList = new ArrayList<>();
@@ -224,6 +237,53 @@ public class GameHandler {
                 }
 
                 HandlerUtils.sendResponse(exchange, 200, Map.of("games", gameList));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                HandlerUtils.sendResponse(exchange, 500, Map.of("error", "Internal server error: " + e.getMessage()));
+            }
+        }
+    }
+
+    /**
+     * List mazes handler
+     */
+    public static class ListMazesHandler implements HttpHandler {
+        private final DatabaseManager db;
+        private final SessionManager sessionManager;
+
+        public ListMazesHandler(DatabaseManager db, SessionManager sessionManager) {
+            this.db = db;
+            this.sessionManager = sessionManager;
+        }
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equals(exchange.getRequestMethod())) {
+                HandlerUtils.sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
+                return;
+            }
+
+            try {
+                // Validate session
+                SessionManager.SessionData session = HandlerUtils.validateSession(exchange, sessionManager);
+                if (session == null) {
+                    HandlerUtils.sendResponse(exchange, 401, Map.of("error", "Unauthorized"));
+                    return;
+                }
+
+                List<Maze> mazes = db.getAllMazes();
+                List<Map<String, Object>> mazeList = new ArrayList<>();
+
+                for (Maze maze : mazes) {
+                    Map<String, Object> mazeData = new HashMap<>();
+                    mazeData.put("id", maze.getId());
+                    mazeData.put("name", maze.getName());
+                    mazeData.put("difficulty", maze.getDifficulty());
+                    mazeList.add(mazeData);
+                }
+
+                HandlerUtils.sendResponse(exchange, 200, Map.of("mazes", mazeList));
 
             } catch (Exception e) {
                 e.printStackTrace();

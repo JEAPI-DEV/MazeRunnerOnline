@@ -187,7 +187,7 @@ public class BotHandler {
                 for (PlayerBot bot : bots) {
                     Map<String, Object> botData = new HashMap<>();
                     botData.put("id", bot.getId());
-                    botData.put("name", bot.getBotName());
+                    botData.put("botName", bot.getBotName());
                     botData.put("uploadedAt", bot.getUploadedAt().toString());
                     botData.put("isDefault", bot.isDefault());
                     botList.add(botData);
@@ -230,6 +230,7 @@ public class BotHandler {
                 }
 
                 // Parse request body
+                @SuppressWarnings("unchecked")
                 Map<String, Object> body = gson.fromJson(new InputStreamReader(exchange.getRequestBody()), Map.class);
                 if (!body.containsKey("botId")) {
                     HandlerUtils.sendResponse(exchange, 400, Map.of("error", "botId is required"));

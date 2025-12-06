@@ -58,15 +58,24 @@ public class ServerMode {
         server.createContext("/api/register", new AuthHandler.RegisterHandler(db, sessionManager));
         server.createContext("/api/login", new AuthHandler.LoginHandler(db, sessionManager));
         server.createContext("/api/logout", new AuthHandler.LogoutHandler());
-        server.createContext("/api/upload-bot", new BotHandler.UploadBotHandler(db, sessionManager, config));
-        server.createContext("/api/user/bots", new BotHandler.ListBotsHandler(db, sessionManager));
+        server.createContext("/api/bot/upload", new BotHandler.UploadBotHandler(db, sessionManager, config));
+        server.createContext("/api/bot/list", new BotHandler.ListBotsHandler(db, sessionManager));
         server.createContext("/api/bot/default", new BotHandler.SetDefaultBotHandler(db, sessionManager));
         server.createContext("/api/bot/delete", new BotHandler.DeleteBotHandler(db, sessionManager));
-        server.createContext("/api/play",
+
+        server.createContext("/api/lobby/create", new LobbyHandler.CreateLobbyHandler(db, sessionManager));
+        server.createContext("/api/lobby/list", new LobbyHandler.ListLobbiesHandler(db));
+        server.createContext("/api/lobby/join", new LobbyHandler.JoinLobbyHandler(db, sessionManager));
+        server.createContext("/api/lobby/leave", new LobbyHandler.LeaveLobbyHandler(db, sessionManager));
+        server.createContext("/api/lobby/start", new LobbyHandler.StartLobbyHandler(db, sessionManager, gameService));
+        server.createContext("/api/lobby/", new LobbyHandler.GetLobbyHandler(db));
+
+        server.createContext("/api/game/play",
                 new GameHandler.PlayGameHandler(db, sessionManager, mazeService, gameService));
         server.createContext("/api/game-result", new GameHandler.GameResultHandler(db, sessionManager));
         server.createContext("/api/user/history", new GameHandler.UserHistoryHandler(db, sessionManager));
         server.createContext("/api/leaderboard", new LeaderboardHandler(db));
+        server.createContext("/api/mazes", new GameHandler.ListMazesHandler(db, sessionManager));
 
         // Static file handler for web pages
         server.createContext("/", new StaticFileHandler(config.getProperty("web.directory", "web")));

@@ -635,3 +635,97 @@ body {
         padding: 20px;
     }
 }
+
+/* Game History Item Styling */
+.game-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid var(--border);
+    transition: background-color 0.2s;
+}
+
+.game-item:hover {
+    background-color: rgba(89, 131, 146, 0.05);
+}
+
+.game-item:last-child {
+    border-bottom: none;
+}
+
+.game-info {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+}
+
+.maze-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1.1em;
+}
+
+.game-date {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.game-stats {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.difficulty {
+    font-size: 0.8em;
+    padding: 2px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.difficulty.easy {
+    background: rgba(76, 175, 80, 0.1);
+    color: #4CAF50;
+}
+
+.difficulty.medium {
+    background: rgba(255, 152, 0, 0.1);
+    color: #FF9800;
+}
+
+.difficulty.hard {
+    background: rgba(244, 67, 54, 0.1);
+    color: #F44336;
+}
+
+.steps {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.game-score-container {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.score {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.game-item.completed .score {
+    color: #4CAF50;
+}
+
+.game-item.failed .score {
+    color: #F44336;
+}

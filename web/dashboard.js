@@ -6,6 +6,8 @@ if (!checkAuth()) {
 // Set username
 document.getElementById('username').textContent = localStorage.getItem('username');
 
+let currentHistoryTab = 'SINGLEPLAYER';
+
 // Load user data
 loadBots();
 loadGameHistory();
@@ -27,7 +29,7 @@ async function handleBotUpload(event) {
     formData.append('file', botFile);
 
     try {
-        const response = await fetch(`${API_BASE}/upload-bot`, {
+        const response = await fetch(`${API_BASE}/bot/upload`, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -52,7 +54,7 @@ async function handleBotUpload(event) {
 // Load user's bots
 async function loadBots() {
     try {
-        const response = await fetch(`${API_BASE}/user/bots`, {
+        const response = await fetch(`${API_BASE}/bot/list`, {
             headers: getAuthHeaders()
         });
 
@@ -60,24 +62,29 @@ async function loadBots() {
         const botsList = document.getElementById('botsList');
 
         if (response.ok && data.bots && data.bots.length > 0) {
-            botsList.innerHTML = data.bots.map(bot => `
-                <div class="bot-item ${bot.isDefault ? 'default' : 'inactive'}" onclick="setDefaultBot(${bot.id})">
+            botsList.innerHTML = '';
+            data.bots.forEach(bot => {
+                const botCard = document.createElement('div');
+                botCard.className = `bot-item ${bot.isDefault ? 'default' : 'inactive'}`;
+                botCard.innerHTML = `
                     <div class="bot-info">
-                        <h4>${bot.name} ${bot.isDefault ? '<span class="badge">Default</span>' : ''}</h4>
-                        <p>Uploaded: ${new Date(bot.uploadedAt).toLocaleString()}</p>
+                        <h4>${bot.botName}</h4>
+                        <p class="bot-date">Uploaded: ${new Date(bot.uploadedAt).toLocaleDateString()}</p>
+                        ${bot.isDefault ? '<span class="badge">Default</span>' : ''}
                     </div>
-                    <button class="btn-delete" onclick="deleteBot(event, ${bot.id})" title="Delete Bot">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                        </svg>
-                    </button>
-                </div>
-            `).join('');
+                    <div class="bot-actions">
+                        ${!bot.isDefault ? `<button class="btn btn-sm" onclick="setDefaultBot(${bot.id})">Set Default</button>` : ''}
+                        <button class="btn btn-sm btn-danger" onclick="deleteBot(${bot.id})">Delete</button>
+                    </div>
+                `;
+                botsList.appendChild(botCard);
+            });
         } else {
-            botsList.innerHTML = '<p class="loading">No bots uploaded yet. Upload your first bot above!</p>';
+            botsList.innerHTML = '<p class="empty-state">No bots uploaded yet. Upload your first bot above!</p>';
         }
     } catch (error) {
-        document.getElementById('botsList').innerHTML = '<p class="loading">Error loading bots</p>';
+        console.error('Error loading bots:', error);
+        document.getElementById('botsList').innerHTML = '<p class="error">Failed to load bots. Please refresh the page.</p>';
     }
 }
 
@@ -103,9 +110,7 @@ async function setDefaultBot(botId) {
 }
 
 // Delete bot
-async function deleteBot(event, botId) {
-    event.stopPropagation(); // Prevent triggering selection
-
+async function deleteBot(botId) {
     if (!confirm('Are you sure you want to delete this bot?')) {
         return;
     }
@@ -142,7 +147,7 @@ async function playGame() {
     gameResult.innerHTML = '';
 
     try {
-        const response = await fetch(`${API_BASE}/play?difficulty=${difficulty}`, {
+        const response = await fetch(`${API_BASE}/game/play?difficulty=${difficulty}`, {
             method: 'POST',
             headers: getAuthHeaders()
         });
@@ -180,11 +185,6 @@ async function playGame() {
                 </a>
             `;
 
-            // Reload game history
-            loadGameHistory();
-        } else {
-            gameResult.className = 'game-result error show';
-            gameResult.innerHTML = `<p>Game execution failed: ${data.error || 'Unknown error'}</p>`;
         }
     } catch (error) {
         gameResult.className = 'game-result error show';
@@ -195,35 +195,57 @@ async function playGame() {
     }
 }
 
+function switchHistoryTab(tab) {
+    currentHistoryTab = tab;
+
+    // Update UI
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.textContent.toUpperCase() === tab) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    loadGameHistory();
+}
+
 // Load game history
 async function loadGameHistory() {
+    const historyContainer = document.getElementById('gameHistory');
+
     try {
-        const response = await fetch(`${API_BASE}/user/history`, {
+        const response = await fetch(`${API_BASE}/user/history?type=${currentHistoryTab}`, {
             headers: getAuthHeaders()
         });
 
         const data = await response.json();
-        const historyDiv = document.getElementById('gameHistory');
 
-        if (response.ok && data.games && data.games.length > 0) {
-            historyDiv.innerHTML = data.games.map(game => `
-                <div class="game-item">
+        if (response.ok && data.games) {
+            if (data.games.length === 0) {
+                historyContainer.innerHTML = '<p class="no-data">No games played yet.</p>';
+                return;
+            }
+
+            historyContainer.innerHTML = data.games.map(game => `
+                <div class="game-item ${game.completed ? 'completed' : 'failed'}" onclick="window.location.href='viewer.html?game=${game.id}'" style="cursor: pointer;">
                     <div class="game-info">
-                        <h4>${game.mazeName} (${game.difficulty})</h4>
-                        <p>${new Date(game.playedAt).toLocaleString()} • ${game.stepsTaken} steps</p>
+                        <span class="maze-name">${game.mazeName}</span>
+                        <span class="game-date">${new Date(game.playedAt).toLocaleString()}</span>
                     </div>
-                    <div class="game-actions">
-                        <div class="game-score ${game.completed ? 'completed' : 'failed'}">
-                            ${game.completed ? game.score.toFixed(1) + '%' : 'Failed'}
-                        </div>
-                        <a href="viewer.html?game=${game.id}" class="btn-view">View Replay</a>
+                    <div class="game-stats">
+                        <span class="difficulty ${game.difficulty.toLowerCase()}">${game.difficulty}</span>
+                        <span class="steps">${game.stepsTaken} steps</span>
+                    </div>
+                    <div class="game-score-container">
+                         <span class="score">${game.score.toFixed(1)}%</span>
                     </div>
                 </div>
             `).join('');
         } else {
-            historyDiv.innerHTML = '<p class="loading">No games played yet. Click "Play Game" to start!</p>';
+            historyContainer.innerHTML = '<p class="error">Failed to load history</p>';
         }
     } catch (error) {
-        document.getElementById('gameHistory').innerHTML = '<p class="loading">Error loading game history</p>';
+        historyContainer.innerHTML = `<p class="error">Error: ${error.message}</p>`;
     }
 }

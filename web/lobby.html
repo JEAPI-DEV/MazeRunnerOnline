@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Lobbies - Maze Runner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Multiplayer Lobbies</h1>
+            <div class="header-actions">
+                <button id="create-lobby-btn" class="btn btn-primary">Create Lobby</button>
+                <button id="back-btn" class="btn">Back to Dashboard</button>
+            </div>
+        </header>
+
+        <main>
+            <section id="lobby-list-section">
+                <h2>Active Lobbies</h2>
+                <div id="lobbies-container" class="lobbies-grid"></div>
+            </section>
+
+            <section id="lobby-room-section" style="display: none;">
+                <div class="lobby-room">
+                    <div class="lobby-header">
+                        <h2 id="lobby-name"></h2>
+                        <span id="lobby-status" class="badge"></span>
+                    </div>
+                    <div class="lobby-info">
+                        <p><strong>Maze:</strong> <span id="lobby-maze"></span></p>
+                        <p><strong>Players:</strong> <span id="lobby-player-count"></span>/<span
+                                id="lobby-max-players"></span></p>
+                    </div>
+                    <div class="players-list" id="players-list"></div>
+                    <div class="lobby-actions">
+                        <button id="start-game-btn" class="btn btn-primary" style="display: none;">Start Game</button>
+                        <button id="leave-lobby-btn" class="btn btn-danger">Leave Lobby</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Create Lobby Modal -->
+    <div id="create-lobby-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Create Lobby</h2>
+            <form id="create-lobby-form">
+                <div class="form-group">
+                    <label for="lobby-name-input">Lobby Name:</label>
+                    <input type="text" id="lobby-name-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="maze-select">Maze:</label>
+                    <select id="maze-select" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="max-players-input">Max Players:</label>
+                    <input type="number" id="max-players-input" min="2" max="4" value="4">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" id="cancel-create-btn" class="btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="lobby.js"></script>
+</body>
+
+</html>

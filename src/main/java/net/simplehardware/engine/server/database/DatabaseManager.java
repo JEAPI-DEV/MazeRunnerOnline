@@ -298,7 +298,6 @@ public class DatabaseManager {
         }
     }
 
-
     public PlayerBot getUserDefaultBot(int userId) throws SQLException {
         String sql = "SELECT * FROM player_bots WHERE user_id = ? AND is_default = 1";
 
@@ -411,6 +410,32 @@ public class DatabaseManager {
             }
         }
         return null;
+    }
+
+    /**
+     * Get all mazes
+     */
+    public List<Maze> getAllMazes() throws SQLException {
+        String sql = "SELECT * FROM mazes ORDER BY created_at DESC";
+        List<Maze> mazes = new ArrayList<>();
+
+        try (Statement stmt = connection.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                mazes.add(new Maze(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getString("file_path"),
+                        rs.getInt("min_steps"),
+                        rs.getInt("forms"),
+                        rs.getInt("size"),
+                        Maze.Difficulty.valueOf(rs.getString("difficulty")),
+                        rs.getTimestamp("created_at"),
+                        rs.getBoolean("active")));
+            }
+        }
+        return mazes;
     }
 
     /**
@@ -550,8 +575,17 @@ public class DatabaseManager {
     /**
      * Get user's game history
      */
-    public List<GameResult> getUserGameHistory(int userId, int limit) throws SQLException {
-        String sql = "SELECT * FROM game_results WHERE user_id = ? ORDER BY played_at DESC LIMIT ?";
+    public List<GameResult> getUserGameHistory(int userId, int limit, String type) throws SQLException {
+        String sql = "SELECT * FROM game_results WHERE user_id = ? ";
+
+        if ("MULTIPLAYER".equals(type)) {
+            sql += "AND game_data_path LIKE '%_lobby%' ";
+        } else {
+            sql += "AND game_data_path NOT LIKE '%_lobby%' ";
+        }
+
+        sql += "ORDER BY played_at DESC LIMIT ?";
+
         List<GameResult> results = new ArrayList<>();
 
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
@@ -620,6 +654,147 @@ public class DatabaseManager {
             }
         }
         return null;
+    }
+
+    public Lobby createLobby(int hostUserId, String name, int mazeId, int maxPlayers) throws SQLException {
+        String sql = "INSERT INTO lobbies (name, host_user_id, maze_id, max_players, status) VALUES (?, ?, ?, ?, 'WAITING')";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setInt(2, hostUserId);
+            pstmt.setInt(3, mazeId);
+            pstmt.setInt(4, maxPlayers);
+
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                try (Statement stmt = connection.createStatement();
+                        ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
+                    if (rs.next()) {
+                        int lobbyId = rs.getInt(1);
+                        return getLobby(lobbyId);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public Lobby getLobby(int lobbyId) throws SQLException {
+        String sql = "SELECT * FROM lobbies WHERE id = ?";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, lobbyId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return new Lobby(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getInt("host_user_id"),
+                        rs.getInt("maze_id"),
+                        rs.getInt("max_players"),
+                        rs.getString("status"),
+                        (Integer) rs.getObject("last_game_id"),
+                        rs.getTimestamp("created_at"));
+            }
+        }
+        return null;
+    }
+
+    public List<Lobby> getActiveLobbies() throws SQLException {
+        String sql = "SELECT * FROM lobbies WHERE status = 'WAITING' ORDER BY created_at DESC";
+        List<Lobby> lobbies = new ArrayList<>();
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                lobbies.add(new Lobby(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getInt("host_user_id"),
+                        rs.getInt("maze_id"),
+                        rs.getInt("max_players"),
+                        rs.getString("status"),
+                        (Integer) rs.getObject("last_game_id"),
+                        rs.getTimestamp("created_at")));
+            }
+        }
+        return lobbies;
+    }
+
+    public boolean joinLobby(int lobbyId, int userId, int botId) throws SQLException {
+        Lobby lobby = getLobby(lobbyId);
+        if (lobby == null || !lobby.getStatus().equals("WAITING")) {
+            return false;
+        }
+
+        List<LobbyPlayer> players = getLobbyPlayers(lobbyId);
+        if (players.size() >= lobby.getMaxPlayers()) {
+            return false;
+        }
+
+        String sql = "INSERT INTO lobby_players (lobby_id, user_id, bot_id) VALUES (?, ?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, lobbyId);
+            pstmt.setInt(2, userId);
+            pstmt.setInt(3, botId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    public boolean leaveLobby(int lobbyId, int userId) throws SQLException {
+        String sql = "DELETE FROM lobby_players WHERE lobby_id = ? AND user_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, lobbyId);
+            pstmt.setInt(2, userId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    public List<LobbyPlayer> getLobbyPlayers(int lobbyId) throws SQLException {
+        String sql = "SELECT * FROM lobby_players WHERE lobby_id = ? ORDER BY joined_at";
+        List<LobbyPlayer> players = new ArrayList<>();
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, lobbyId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                players.add(new LobbyPlayer(
+                        rs.getInt("lobby_id"),
+                        rs.getInt("user_id"),
+                        rs.getInt("bot_id"),
+                        rs.getTimestamp("joined_at")));
+            }
+        }
+        return players;
+    }
+
+    public boolean updateLobbyStatus(int lobbyId, String status) throws SQLException {
+        String sql = "UPDATE lobbies SET status = ? WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, status);
+            pstmt.setInt(2, lobbyId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deleteLobby(int lobbyId) throws SQLException {
+        String sql = "DELETE FROM lobbies WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, lobbyId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    public void updateLobbyLastGameId(int lobbyId, int gameId) throws SQLException {
+        String sql = "UPDATE lobbies SET last_game_id = ? WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, gameId);
+            pstmt.setInt(2, lobbyId);
+            pstmt.executeUpdate();
+        }
     }
 
     public List<LeaderboardEntry> getLeaderboard(int limit) throws SQLException {

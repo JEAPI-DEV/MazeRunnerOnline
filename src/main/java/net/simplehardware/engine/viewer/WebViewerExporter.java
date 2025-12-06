@@ -33,11 +33,8 @@ public class WebViewerExporter {
         data.put("n", mazeName);
         data.put("h", convertGameHistoryWithDeltas(gameHistory));
 
-        // Use compact JSON (no pretty printing)
         Gson gson = new Gson();
         String json = gson.toJson(data);
-
-        // Use BufferedWriter with explicit flush to ensure complete writes
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath))) {
             writer.write(json);
             writer.flush();
@@ -53,11 +50,9 @@ public class WebViewerExporter {
             return result;
         }
 
-        // First state is always full
         GameState firstState = gameHistory.get(0);
         result.add(convertGameStateFull(firstState));
 
-        // Subsequent states use delta encoding
         for (int i = 1; i < gameHistory.size(); i++) {
             GameState prevState = gameHistory.get(i - 1);
             GameState currState = gameHistory.get(i);
@@ -223,7 +218,19 @@ public class WebViewerExporter {
 
     private static String convertCell(CellSnapshot cell) {
         StringBuilder sb = new StringBuilder();
-        sb.append(cell.getType().name().charAt(0));
+
+        switch (cell.getType()) {
+            case WALL:
+                sb.append('W');
+                break;
+            case FINISH:
+                sb.append('N');
+                break;
+            case FLOOR:
+            default:
+                sb.append('F');
+                break;
+        }
 
         if (cell.getForm() != null) {
             sb.append(',').append(cell.getForm());

@@ -49,20 +49,48 @@ CREATE INDEX IF NOT EXISTS idx_game_results_user ON game_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_game_results_maze ON game_results(maze_id);
 CREATE INDEX IF NOT EXISTS idx_game_results_played_at ON game_results(played_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mazes_active ON mazes(active);
+CREATE TABLE IF NOT EXISTS lobbies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    host_user_id INTEGER NOT NULL,
+    maze_id INTEGER NOT NULL,
+    max_players INTEGER NOT NULL DEFAULT 4,
+    status TEXT NOT NULL DEFAULT 'WAITING',
+    last_game_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (host_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (maze_id) REFERENCES mazes(id) ON DELETE CASCADE,
+    FOREIGN KEY (last_game_id) REFERENCES game_results(id) ON DELETE
+    SET NULL
+);
+CREATE TABLE IF NOT EXISTS lobby_players (
+    lobby_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    bot_id INTEGER NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (lobby_id, user_id),
+    FOREIGN KEY (lobby_id) REFERENCES lobbies(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (bot_id) REFERENCES player_bots(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_lobbies_status ON lobbies(status);
+CREATE INDEX IF NOT EXISTS idx_lobbies_host ON lobbies(host_user_id);
+CREATE INDEX IF NOT EXISTS idx_lobby_players_user ON lobby_players(user_id);
 -- Leaderboard view
 CREATE VIEW IF NOT EXISTS leaderboard AS
 SELECT u.id as user_id,
     u.username,
-    COUNT(gr.id) as games_played,
-    ROUND(AVG(gr.score_percentage), 2) as avg_score,
-    ROUND(MIN(gr.score_percentage), 2) as worst_score,
-    ROUND(MAX(gr.score_percentage), 2) as best_score,
-    MAX(gr.played_at) as last_played
+    COUNT(DISTINCT gr.maze_id) as mazes_completed,
+    AVG(gr.score_percentage) as avg_score,
+    MAX(gr.score_percentage) as best_score,
+    COUNT(*) as total_games
 FROM users u
-    LEFT JOIN game_results gr ON u.id = gr.user_id
+    JOIN game_results gr ON u.id = gr.user_id
+WHERE gr.completed = 1
 GROUP BY u.id,
     u.username
-ORDER BY avg_score DESC;
+ORDER BY avg_score DESC,
+    mazes_completed DESC;
 -- User statistics view
 CREATE VIEW IF NOT EXISTS user_stats AS
 SELECT u.id as user_id,
