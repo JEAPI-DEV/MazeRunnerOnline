@@ -101,11 +101,27 @@ function checkAuth() {
 }
 
 function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'index.html';
+        return {};
+    }
     return {
-        'Authorization': 'Bearer ' + localStorage.getItem('token'),
+        'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json'
     };
 }
+
+// Global fetch wrapper to handle 401s
+const originalFetch = window.fetch;
+window.fetch = async function (...args) {
+    const response = await originalFetch(...args);
+    if (response.status === 401) {
+        logout();
+        return Promise.reject(new Error('Session expired'));
+    }
+    return response;
+};
 
 function showError(message) {
     const errorDiv = document.getElementById('errorMessage');

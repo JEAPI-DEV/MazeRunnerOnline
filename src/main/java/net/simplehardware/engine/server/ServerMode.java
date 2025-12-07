@@ -68,7 +68,7 @@ public class ServerMode {
         server.createContext("/api/lobby/join", new LobbyHandler.JoinLobbyHandler(db, sessionManager));
         server.createContext("/api/lobby/leave", new LobbyHandler.LeaveLobbyHandler(db, sessionManager));
         server.createContext("/api/lobby/start", new LobbyHandler.StartLobbyHandler(db, sessionManager, gameService));
-        server.createContext("/api/lobby/", new LobbyHandler.GetLobbyHandler(db));
+        server.createContext("/api/lobby/", new LobbyHandler.GetLobbyHandler(db, sessionManager));
 
         server.createContext("/api/game/play",
                 new GameHandler.PlayGameHandler(db, sessionManager, mazeService, gameService));

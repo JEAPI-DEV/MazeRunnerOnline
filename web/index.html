@@ -9,6 +9,12 @@
 </head>
 
 <body>
+    <script>
+        // Auto-redirect if already logged in
+        if (localStorage.getItem('token')) {
+            window.location.href = 'dashboard.html';
+        }
+    </script>
     <div class="container">
         <div class="header">
             <h1>Maze Runner</h1>

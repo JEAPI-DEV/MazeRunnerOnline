@@ -56,6 +56,41 @@ public class DatabaseManager {
                 stmt.execute("ALTER TABLE player_bots ADD COLUMN is_default BOOLEAN DEFAULT 0");
             }
         }
+
+        // Check if last_heartbeat column exists in lobbies
+        boolean hasLastHeartbeat = false;
+        try (ResultSet rs = connection.getMetaData().getColumns(null, null, "lobbies", "last_heartbeat")) {
+            if (rs.next()) {
+                hasLastHeartbeat = true;
+            }
+        }
+
+        if (!hasLastHeartbeat) {
+            System.out.println("Migrating: Adding last_heartbeat column to lobbies");
+            try (Statement stmt = connection.createStatement()) {
+                stmt.execute("ALTER TABLE lobbies ADD COLUMN last_heartbeat TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+    }
+
+    public void heartbeatLobby(int lobbyId) throws SQLException {
+        String sql = "UPDATE lobbies SET last_heartbeat = CURRENT_TIMESTAMP WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, lobbyId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    public void cleanupInactiveLobbies() throws SQLException {
+        // Delete lobbies inactive for more than 30 seconds
+        // SQLite syntax for timestamp comparison
+        String sql = "DELETE FROM lobbies WHERE last_heartbeat < datetime('now', '-30 seconds') AND status != 'FINISHED'";
+        try (Statement stmt = connection.createStatement()) {
+            int deleted = stmt.executeUpdate(sql);
+            if (deleted > 0) {
+                System.out.println("Cleaned up " + deleted + " inactive lobbies");
+            }
+        }
     }
 
     /**
@@ -147,6 +182,20 @@ public class DatabaseManager {
             }
         }
         return null;
+    }
+
+
+
+    public String getMazeName(int mazeId) throws SQLException {
+        String sql = "SELECT name FROM mazes WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, mazeId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("name");
+            }
+        }
+        return "Unknown Maze";
     }
 
     /**
@@ -724,14 +773,31 @@ public class DatabaseManager {
     }
 
     public boolean joinLobby(int lobbyId, int userId, int botId) throws SQLException {
+        // Check if lobby exists and is waiting
         Lobby lobby = getLobby(lobbyId);
-        if (lobby == null || !lobby.getStatus().equals("WAITING")) {
+        if (lobby == null || !"WAITING".equals(lobby.getStatus())) {
             return false;
         }
 
-        List<LobbyPlayer> players = getLobbyPlayers(lobbyId);
-        if (players.size() >= lobby.getMaxPlayers()) {
-            return false;
+        // Check if already joined
+        String checkSql = "SELECT 1 FROM lobby_players WHERE lobby_id = ? AND user_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(checkSql)) {
+            pstmt.setInt(1, lobbyId);
+            pstmt.setInt(2, userId);
+            if (pstmt.executeQuery().next()) {
+                // Already joined, just update bot if needed or return true
+                return true;
+            }
+        }
+
+        // Check player count
+        String countSql = "SELECT COUNT(*) FROM lobby_players WHERE lobby_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(countSql)) {
+            pstmt.setInt(1, lobbyId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next() && rs.getInt(1) >= lobby.getMaxPlayers()) {
+                return false;
+            }
         }
 
         String sql = "INSERT INTO lobby_players (lobby_id, user_id, bot_id) VALUES (?, ?, ?)";

@@ -20,69 +20,77 @@
         </div>
     </nav>
 
-    <div class="container">
-        <div class="welcome">
+    <div class="container dashboard-grid">
+        <div class="welcome-section">
             <h2>Welcome, <span id="username"></span>!</h2>
         </div>
 
-        <!-- Bot Upload Section -->
-        <div class="card">
-            <h3>Upload Your Bot</h3>
-            <form id="uploadForm" onsubmit="handleBotUpload(event)">
+        <!-- Left Column -->
+        <div class="dashboard-col">
+            <!-- Play Game Section -->
+            <div class="card play-card">
+                <h3>Play Game</h3>
+                <p>Select a difficulty and run your latest bot on a random maze!</p>
+
                 <div class="form-group">
-                    <label for="botName">Bot Name</label>
-                    <input type="text" id="botName" required maxlength="50">
+                    <label for="difficultySelect">Difficulty</label>
+                    <select id="difficultySelect" class="difficulty-select">
+                        <option value="EASY">Easy</option>
+                        <option value="MEDIUM" selected>Medium</option>
+                        <option value="HARD">Hard</option>
+                    </select>
                 </div>
-                <div class="form-group">
-                    <label for="botFile">Bot JAR File</label>
-                    <input type="file" id="botFile" accept=".jar" required>
+
+                <div class="game-actions">
+                    <button onclick="playGame()" class="btn btn-success btn-large" id="playButton">
+                        Play Singleplayer
+                    </button>
+                    <button onclick="window.location.href='lobby.html'" class="btn btn-primary btn-large">
+                        Multiplayer Lobby
+                    </button>
                 </div>
-                <button type="submit" class="btn btn-primary">Upload Bot</button>
-            </form>
-        </div>
+                <div id="gameResult" class="game-result"></div>
+            </div>
 
-        <!-- Your Bots Section -->
-        <div class="card">
-            <h3>Your Bots</h3>
-            <div id="botsList" class="bots-list">
-                <p class="loading">Loading bots...</p>
+            <!-- Bot Upload Section -->
+            <div class="card">
+                <h3>Upload Your Bot</h3>
+                <form id="uploadForm" onsubmit="handleBotUpload(event)">
+                    <div class="form-group">
+                        <label for="botName">Bot Name</label>
+                        <input type="text" id="botName" required maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="botFile">Bot JAR File</label>
+                        <input type="file" id="botFile" accept=".jar" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload Bot</button>
+                </form>
             </div>
         </div>
 
-        <!-- Play Game Section -->
-        <div class="card">
-            <h3>Play Game</h3>
-            <p>Select a difficulty and run your latest bot on a random maze!</p>
-
-            <div class="form-group">
-                <label for="difficultySelect">Difficulty</label>
-                <select id="difficultySelect" class="difficulty-select">
-                    <option value="EASY">Easy</option>
-                    <option value="MEDIUM" selected>Medium</option>
-                    <option value="HARD">Hard</option>
-                </select>
+        <!-- Right Column -->
+        <div class="dashboard-col">
+            <!-- Recent Games Section -->
+            <div class="card history-card">
+                <div class="card-header">
+                    <h3>Recent Games</h3>
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="switchHistoryTab('SINGLEPLAYER')">Singleplayer</button>
+                        <button class="tab-btn" onclick="switchHistoryTab('MULTIPLAYER')">Multiplayer</button>
+                    </div>
+                </div>
+                <div id="gameHistory" class="game-history">
+                    <p class="loading">Loading game history...</p>
+                </div>
             </div>
 
-            <div class="game-actions">
-                <button onclick="playGame()" class="btn btn-success btn-large" id="playButton">
-                    Play Game
-                </button>
-                <button onclick="window.location.href='lobby.html'" class="btn btn-primary btn-large">
-                    Multiplayer
-                </button>
-            </div>
-            <div id="gameResult" class="game-result"></div>
-        </div>
-
-        <!-- Recent Games Section -->
-        <div class="card">
-            <h3>Recent Games</h3>
-            <div class="tabs">
-                <button class="tab-btn active" onclick="switchHistoryTab('SINGLEPLAYER')">Singleplayer</button>
-                <button class="tab-btn" onclick="switchHistoryTab('MULTIPLAYER')">Multiplayer</button>
-            </div>
-            <div id="gameHistory" class="game-history">
-                <p class="loading">Loading game history...</p>
+            <!-- Your Bots Section -->
+            <div class="card">
+                <h3>Your Bots</h3>
+                <div id="botsList" class="bots-list">
+                    <p class="loading">Loading bots...</p>
+                </div>
             </div>
         </div>
     </div>

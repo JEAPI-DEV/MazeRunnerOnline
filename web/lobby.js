@@ -59,8 +59,9 @@ function createLobbyCard(lobbyData) {
 }
 
 async function showCreateLobbyModal() {
-    await loadMazes();
-    document.getElementById('create-lobby-modal').style.display = 'flex';
+    const modal = document.getElementById('create-lobby-modal');
+    modal.style.display = 'flex';
+    loadMazes();
 }
 
 function hideCreateLobbyModal() {
@@ -178,6 +179,9 @@ async function updateLobbyRoom(lobbyId) {
             const lobbyMaxPlayersElement = document.getElementById('lobby-max-players');
 
             if (lobbyNameElement) lobbyNameElement.textContent = lobby.name;
+            if (document.getElementById('lobby-maze')) {
+                document.getElementById('lobby-maze').textContent = data.mazeName || 'Unknown';
+            }
 
             if (lobbyStatusElement) {
                 lobbyStatusElement.textContent = lobby.status;
@@ -185,13 +189,16 @@ async function updateLobbyRoom(lobbyId) {
 
                 // Show loading overlay if game is in progress
                 if (lobby.status === 'IN_PROGRESS') {
-                    // You could add a loading overlay here if desired
                     lobbyStatusElement.textContent = 'Game in Progress...';
                 }
             }
 
             if (lobbyMaxPlayersElement) {
                 lobbyMaxPlayersElement.textContent = lobby.maxPlayers;
+            }
+
+            if (document.getElementById('lobby-player-count')) {
+                document.getElementById('lobby-player-count').textContent = players.length;
             }
 
             const userId = parseInt(localStorage.getItem('userId'));
@@ -272,10 +279,7 @@ async function startGame() {
         const data = await response.json();
 
         if (response.ok) {
-            showSuccess('Game started! Redirecting to results...');
-            setTimeout(() => {
-                window.location.href = 'dashboard.html';
-            }, 2000);
+            // No alert, just wait for redirect via polling
         } else {
             showError(data.error || 'Failed to start game');
         }

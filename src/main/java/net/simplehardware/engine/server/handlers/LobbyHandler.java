@@ -117,6 +117,9 @@ public class LobbyHandler {
             }
 
             try {
+                // Cleanup inactive lobbies first
+                db.cleanupInactiveLobbies();
+
                 List<Lobby> lobbies = db.getActiveLobbies();
                 List<Map<String, Object>> lobbyData = new ArrayList<>();
 
@@ -139,9 +142,11 @@ public class LobbyHandler {
 
     public static class GetLobbyHandler implements HttpHandler {
         private final DatabaseManager db;
+        private final SessionManager sessionManager;
 
-        public GetLobbyHandler(DatabaseManager db) {
+        public GetLobbyHandler(DatabaseManager db, SessionManager sessionManager) {
             this.db = db;
+            this.sessionManager = sessionManager;
         }
 
         @Override
@@ -178,6 +183,15 @@ public class LobbyHandler {
                 Map<String, Object> response = new HashMap<>();
                 response.put("lobby", lobby);
                 response.put("players", playersData);
+
+                // Add maze name
+                response.put("mazeName", db.getMazeName(lobby.getMazeId()));
+
+                // Heartbeat if host
+                SessionManager.SessionData session = getSession(exchange, sessionManager);
+                if (session != null && session.userId == lobby.getHostUserId()) {
+                    db.heartbeatLobby(lobbyId);
+                }
 
                 sendResponse(exchange, 200, response);
 
