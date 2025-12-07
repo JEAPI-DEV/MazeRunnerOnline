@@ -235,10 +235,10 @@ async function loadGameHistory() {
                     </div>
                     <div class="game-stats">
                         <span class="difficulty ${game.difficulty.toLowerCase()}">${game.difficulty}</span>
-                        <span class="steps">${game.stepsTaken} steps</span>
+                        ${currentHistoryTab !== 'MULTIPLAYER' ? `<span class="steps">${game.stepsTaken} steps</span>` : ''}
                     </div>
                     <div class="game-score-container">
-                         <span class="score">${game.score.toFixed(1)}%</span>
+                         ${currentHistoryTab !== 'MULTIPLAYER' ? `<span class="score">${game.score.toFixed(1)}%</span>` : ''}
                     </div>
                 </div>
             `).join('');
