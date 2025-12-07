@@ -73,30 +73,23 @@
 
     <script src="viewer.js"></script>
     <script>
+        const API_BASE = window.location.origin + '/api';
+
         // Load game data from game ID via API
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const gameId = urlParams.get('game');
             if (gameId) {
-                // Fetch game data from API
-                fetch('/api/game-result?id=' + gameId)
+                // Fetch game data directly using the new secure endpoint
+                fetch(`${API_BASE}/game/file?id=${gameId}`)
                     .then(response => {
                         if (!response.ok) {
-                            throw new Error('Game not found');
-                        }
-                        return response.json();
-                    })
-                    .then(result => {
-                        // Now fetch the actual game data file
-                        return fetch('/' + result.gameDataPath);
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Game data file not found');
+                            throw new Error('Game data not found');
                         }
                         return response.json();
                     })
                     .then(data => {
+                        console.log('Game data loaded successfully');
                         loadGameFromJSON(data);
                     })
                     .catch(error => {

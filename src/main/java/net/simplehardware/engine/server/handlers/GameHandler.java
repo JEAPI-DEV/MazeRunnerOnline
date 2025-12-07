@@ -115,7 +115,6 @@ public class GameHandler {
                 response.put("minSteps", maze.getMinSteps());
                 response.put("score", result.getScorePercentage());
                 response.put("completed", result.isCompleted());
-                response.put("gameDataPath", result.getGameDataPath());
 
                 HandlerUtils.sendResponse(exchange, 200, response);
 
@@ -161,9 +160,9 @@ public class GameHandler {
                     return;
                 }
 
-                // Send game data file path (no authentication required for viewing replays)
+                // Send game data (no authentication required for viewing replays)
                 Map<String, Object> response = new HashMap<>();
-                response.put("gameDataPath", result.getGameDataPath());
+                response.put("gameId", result.getId());
                 response.put("score", result.getScorePercentage());
                 response.put("completed", result.isCompleted());
 
@@ -232,7 +231,6 @@ public class GameHandler {
                     gameData.put("completed", result.isCompleted());
                     gameData.put("stepsTaken", result.getStepsTaken());
                     gameData.put("playedAt", result.getPlayedAt().toString());
-                    gameData.put("gameDataPath", result.getGameDataPath());
                     gameList.add(gameData);
                 }
 

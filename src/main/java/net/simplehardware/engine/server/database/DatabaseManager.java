@@ -27,9 +27,13 @@ public class DatabaseManager {
         connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         connection.setAutoCommit(true);
 
-        // Enable foreign keys
+        // Enable foreign keys and performance optimizations
         try (Statement stmt = connection.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON");
+            stmt.execute("PRAGMA journal_mode = WAL");  // Write-Ahead Logging for better concurrency
+            stmt.execute("PRAGMA synchronous = NORMAL"); // Faster writes, still safe
+            stmt.execute("PRAGMA cache_size = -64000");  // 64MB cache
+            stmt.execute("PRAGMA temp_store = MEMORY");  // Keep temp tables in memory
         }
 
         // Create tables from schema file
@@ -217,6 +221,28 @@ public class DatabaseManager {
             }
         }
         return null;
+    }
+
+    /**
+     * Search users by username (partial match)
+     */
+    public List<User> searchUsersByUsername(String query) throws SQLException {
+        String sql = "SELECT * FROM users WHERE username LIKE ? ORDER BY username LIMIT 50";
+        List<User> users = new ArrayList<>();
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, "%" + query + "%");
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                users.add(new User(
+                        rs.getInt("id"),
+                        rs.getString("username"),
+                        rs.getString("password_hash"),
+                        rs.getTimestamp("created_at")));
+            }
+        }
+        return users;
     }
 
     // ==================== PLAYER BOT OPERATIONS ====================
@@ -640,6 +666,39 @@ public class DatabaseManager {
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, userId);
             pstmt.setInt(2, limit);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                results.add(new GameResult(
+                        rs.getInt("id"),
+                        rs.getInt("user_id"),
+                        rs.getInt("bot_id"),
+                        rs.getInt("maze_id"),
+                        rs.getInt("steps_taken"),
+                        rs.getDouble("score_percentage"),
+                        rs.getBoolean("completed"),
+                        rs.getString("game_data_path"),
+                        rs.getTimestamp("played_at")));
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Get user's game history by difficulty
+     */
+    public List<GameResult> getUserGameHistoryByDifficulty(int userId, String difficulty) throws SQLException {
+        String sql = "SELECT gr.* FROM game_results gr " +
+                "JOIN mazes m ON gr.maze_id = m.id " +
+                "WHERE gr.user_id = ? AND m.difficulty = ? " +
+                "AND gr.game_data_path NOT LIKE '%_lobby%' " +
+                "ORDER BY gr.score_percentage DESC, gr.steps_taken ASC";
+
+        List<GameResult> results = new ArrayList<>();
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.setString(2, difficulty);
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {

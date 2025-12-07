@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - Maze Runner</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .search-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-box button {
+            padding: 12px 30px;
+            font-size: 16px;
+            background-color: var(--accent-primary);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-box button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .search-results {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .user-item {
+            padding: 15px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-primary);
+        }
+
+        .user-item:hover {
+            border-color: var(--accent-hover);
+            background: var(--bg-tertiary);
+        }
+
+        .profile-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .profile-header {
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+
+        .profile-header h1 {
+            margin: 0 0 10px 0;
+            color: var(--text-primary);
+        }
+
+        .profile-info {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .games-section {
+            margin-bottom: 40px;
+        }
+
+        .difficulty-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-button.active {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .tab-button:hover:not(.active) {
+            border-color: var(--accent-hover);
+            background: var(--bg-tertiary);
+        }
+
+        .games-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .game-card {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .game-maze-name {
+            font-weight: bold;
+            font-size: 18px;
+            color: var(--text-primary);
+        }
+
+        .game-stat {
+            text-align: center;
+        }
+
+        .game-stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .game-stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--accent-primary);
+        }
+
+        .game-stat-value.completed {
+            color: var(--success);
+        }
+
+        .game-stat-value.failed {
+            color: var(--error);
+        }
+
+        .game-view-button {
+            padding: 8px 20px;
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .game-view-button:hover {
+            background: var(--accent-hover);
+        }
+
+        .no-games {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: var(--text-secondary);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-size: 16px;
+        }
+
+        .back-link:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <h1>Maze Runner</h1>
+            <div class="nav-links">
+                <a href="dashboard.html">Dashboard</a>
+                <a href="leaderboard.html">Leaderboard</a>
+                <a href="user-profile.html" class="active">User Profiles</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="search-container" id="searchContainer">
+        <h1>Search Users</h1>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search for users by username..." />
+            <button onclick="searchUsers()">Search</button>
+        </div>
+        <div class="search-results" id="searchResults"></div>
+    </div>
+
+    <div class="profile-container" id="profileContainer" style="display: none;">
+        <a href="#" class="back-link" onclick="showSearch(); return false;">← Back to Search</a>
+        
+        <div class="profile-header">
+            <h1 id="profileUsername"></h1>
+            <div class="profile-info" id="profileInfo"></div>
+        </div>
+
+        <div class="games-section">
+            <div class="difficulty-tabs">
+                <button class="tab-button active" onclick="switchTab('EASY')">Easy</button>
+                <button class="tab-button" onclick="switchTab('MEDIUM')">Medium</button>
+                <button class="tab-button" onclick="switchTab('HARD')">Hard</button>
+            </div>
+
+            <div id="gamesContainer" class="games-list"></div>
+        </div>
+    </div>
+
+    <script src="user-profile.js"></script>
+</body>
+</html>

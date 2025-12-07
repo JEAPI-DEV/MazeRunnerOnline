@@ -49,6 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_game_results_user ON game_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_game_results_maze ON game_results(maze_id);
 CREATE INDEX IF NOT EXISTS idx_game_results_played_at ON game_results(played_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mazes_active ON mazes(active);
+CREATE INDEX IF NOT EXISTS idx_game_results_user_maze ON game_results(user_id, maze_id);
+CREATE INDEX IF NOT EXISTS idx_mazes_difficulty ON mazes(difficulty);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE TABLE IF NOT EXISTS lobbies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

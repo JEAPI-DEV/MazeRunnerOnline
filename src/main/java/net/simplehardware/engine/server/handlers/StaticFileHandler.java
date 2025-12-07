@@ -56,6 +56,15 @@ public class StaticFileHandler implements HttpHandler {
 
         exchange.getResponseHeaders().set("Content-Type", contentType);
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        
+        // Add caching headers for static assets
+        if (path.endsWith(".css") || path.endsWith(".js") || path.endsWith(".png") || 
+            path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".gif")) {
+            exchange.getResponseHeaders().set("Cache-Control", "public, max-age=86400"); // 1 day
+        } else {
+            exchange.getResponseHeaders().set("Cache-Control", "no-cache");
+        }
+        
         exchange.sendResponseHeaders(200, fileBytes.length);
 
         try (OutputStream os = exchange.getResponseBody()) {

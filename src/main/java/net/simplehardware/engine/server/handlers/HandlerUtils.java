@@ -42,4 +42,44 @@ public class HandlerUtils {
         String token = authHeader.substring(7);
         return sessionManager.validateSession(token);
     }
+
+    /**
+     * Send JSON response (alias for sendResponse)
+     */
+    public static void sendJsonResponse(HttpExchange exchange, int statusCode, Object data) throws IOException {
+        sendResponse(exchange, statusCode, data);
+    }
+
+    /**
+     * Send error response
+     */
+    public static void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
+        java.util.Map<String, Object> error = new java.util.HashMap<>();
+        error.put("success", false);
+        error.put("error", message);
+        sendResponse(exchange, statusCode, error);
+    }
+
+    /**
+     * Get query parameter from URL
+     */
+    public static String getQueryParam(HttpExchange exchange, String paramName) {
+        String query = exchange.getRequestURI().getQuery();
+        if (query == null) {
+            return null;
+        }
+
+        String[] pairs = query.split("&");
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=");
+            if (keyValue.length == 2 && keyValue[0].equals(paramName)) {
+                try {
+                    return java.net.URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                    return keyValue[1];
+                }
+            }
+        }
+        return null;
+    }
 }

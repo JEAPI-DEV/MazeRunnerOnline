@@ -1,5 +1,5 @@
 // API Base URL
-const API_BASE = '/api';
+const API_BASE = window.location.origin + '/api';
 
 // Auth Functions
 function switchToRegister() {
@@ -51,6 +51,9 @@ async function handleRegister(event) {
     const username = document.getElementById('registerUsername').value;
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
+    const registerKey = document.getElementById('registerKey').value;
+
+    console.log('Registration attempt:', { username, hasPassword: !!password, hasKey: !!registerKey });
 
     if (password !== confirmPassword) {
         showError('Passwords do not match');
@@ -63,7 +66,7 @@ async function handleRegister(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password, registerKey })
         });
 
         const data = await response.json();

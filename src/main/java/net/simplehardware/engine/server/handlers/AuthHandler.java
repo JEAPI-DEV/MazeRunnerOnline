@@ -27,10 +27,12 @@ public class AuthHandler {
     public static class RegisterHandler implements HttpHandler {
         private final DatabaseManager db;
         private final SessionManager sessionManager;
+        private final String requiredRegisterKey;
 
-        public RegisterHandler(DatabaseManager db, SessionManager sessionManager) {
+        public RegisterHandler(DatabaseManager db, SessionManager sessionManager, String requiredRegisterKey) {
             this.db = db;
             this.sessionManager = sessionManager;
+            this.requiredRegisterKey = requiredRegisterKey;
         }
 
         @Override
@@ -48,6 +50,15 @@ public class AuthHandler {
 
                 String username = request.get("username");
                 String password = request.get("password");
+                String registerKey = request.get("registerKey");
+
+                // Validate registration key
+                if (requiredRegisterKey != null && !requiredRegisterKey.isEmpty()) {
+                    if (registerKey == null || !registerKey.equals(requiredRegisterKey)) {
+                        sendResponse(exchange, 403, Map.of("error", "Invalid registration key"));
+                        return;
+                    }
+                }
 
                 // Validate input
                 if (!PasswordHasher.isValidUsername(username)) {
