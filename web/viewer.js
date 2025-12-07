@@ -14,10 +14,10 @@ class GameViewer {
 
         // Player colors
         this.playerColors = [
-            'rgb(255, 100, 100)', // Player 1 - Red
-            'rgb(100, 100, 255)', // Player 2 - Blue
-            'rgb(100, 255, 100)', // Player 3 - Green
-            'rgb(255, 255, 100)'  // Player 4 - Yellow
+            'rgb(0, 255, 100)',   // Player 1
+            'rgb(100, 100, 255)', // Player 2
+            'rgb(100, 255, 100)', // Player 3
+            'rgb(150, 155, 100)'  // Player 4
         ];
 
         // Form colors (matching Java implementation)

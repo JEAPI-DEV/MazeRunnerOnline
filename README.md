@@ -12,6 +12,14 @@ of on the server, and simply send move commands, this is not optimal since it ca
 whole thing much more saver. Please don't use this software expecting it to be secure, it's not, it uses the Security manager,
 tls if you want for client server communication but that's basically it.
 
+## It has a multiplayer,lobby system btw.
+
+![dashboard.png](images/dashboard.png)
+
+![leaderboard.png](images/leaderboard.png)
+
+![mazegui.png](images/mazegui.png)
+
 ## How to compile
 
 ````bash
