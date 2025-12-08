@@ -56,7 +56,7 @@ public class GameHandler {
                 }
 
                 // Parse difficulty from query parameter
-                String difficulty = getType(null, exchange);
+                String difficulty = getType("difficulty", exchange);
 
                 // Get active mazes (filtered by difficulty if specified)
                 List<Maze> activeMazes;
@@ -178,8 +178,12 @@ public class GameHandler {
                         return;
                     }
 
-                    // Get type from query
-                    String type = getType("SINGLEPLAYER", exchange);
+                    // Get type from query parameter (defaults to null if not provided)
+                    String type = getType("type", exchange);
+                    // Use "SINGLEPLAYER" as default if no type specified
+                    if (type == null) {
+                        type = "SINGLEPLAYER";
+                    }
 
                     // Get user's game history
                     List<GameResult> history = db.getUserGameHistory(session.userId(), 50, type);
@@ -209,19 +213,20 @@ public class GameHandler {
             }
         }
 
-    private static String getType(String SINGLEPLAYER, HttpExchange exchange) {
-        String type = SINGLEPLAYER;
+    private static String getType(String paramName, HttpExchange exchange) {
+        String value = null;
         String query = exchange.getRequestURI().getQuery();
         if (query != null) {
             String[] params = query.split("&");
             for (String param : params) {
                 String[] keyValue = param.split("=");
-                if (keyValue.length == 2 && type.equals(keyValue[0])) {
-                    type = keyValue[1].toUpperCase();
+                if (keyValue.length == 2 && paramName.equals(keyValue[0])) {
+                    value = keyValue[1].toUpperCase();
+                    break;
                 }
             }
         }
-        return type;
+        return value;
     }
 
     /**
