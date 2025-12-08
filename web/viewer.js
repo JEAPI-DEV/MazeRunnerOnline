@@ -14,7 +14,7 @@ class GameViewer {
 
         // Player colors
         this.playerColors = [
-            'rgb(203, 14, 64)',   // Player 1
+            'rgb(255, 2, 255)',   // Player 1
             'rgb(144, 213, 255)', // Player 2
             'rgb(144, 238, 144)', // Player 3
             'rgb(255, 165, 0)'  // Player 4
