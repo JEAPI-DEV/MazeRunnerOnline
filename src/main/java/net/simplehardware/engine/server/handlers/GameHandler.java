@@ -219,9 +219,9 @@ public class GameHandler {
         if (query != null) {
             String[] params = query.split("&");
             for (String param : params) {
-                String[] keyValue = param.split("=");
-                if (keyValue.length == 2 && paramName.equals(keyValue[0])) {
-                    value = keyValue[1].toUpperCase();
+                String[] keyValue = param.split("=", 2);
+                if (keyValue.length == 2 && paramName.equals(keyValue[0].trim())) {
+                    value = keyValue[1].trim().toUpperCase();
                     break;
                 }
             }
