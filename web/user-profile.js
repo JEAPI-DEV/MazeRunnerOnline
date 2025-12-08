@@ -141,7 +141,7 @@ function displayGames(difficulty) {
 
 // View game replay
 function viewGame(gameId) {
-    window.location.href = `game-viewer.html?game=${gameId}`;
+    window.location.href = `viewer.html?game=${gameId}`;
 }
 
 // Logout function

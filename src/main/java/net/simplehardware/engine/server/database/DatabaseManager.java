@@ -540,19 +540,6 @@ public class DatabaseManager {
     }
 
     /**
-     * Deactivate old mazes
-     */
-    public void deactivateOldMazes(int daysOld) throws SQLException {
-        String sql = "UPDATE mazes SET active = 0 WHERE created_at < datetime('now', '-' || ? || ' days')";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, daysOld);
-            int updated = pstmt.executeUpdate();
-            System.out.println("Deactivated " + updated + " old mazes");
-        }
-    }
-
-    /**
      * Get mazes that a user has not played yet
      */
     public List<Maze> getUnplayedMazes(int userId, String difficulty) throws SQLException {
@@ -896,20 +883,20 @@ public class DatabaseManager {
         return players;
     }
 
-    public boolean updateLobbyStatus(int lobbyId, String status) throws SQLException {
+    public void updateLobbyStatus(int lobbyId, String status) throws SQLException {
         String sql = "UPDATE lobbies SET status = ? WHERE id = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, status);
             pstmt.setInt(2, lobbyId);
-            return pstmt.executeUpdate() > 0;
+            pstmt.executeUpdate();
         }
     }
 
-    public boolean deleteLobby(int lobbyId) throws SQLException {
+    public void deleteLobby(int lobbyId) throws SQLException {
         String sql = "DELETE FROM lobbies WHERE id = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, lobbyId);
-            return pstmt.executeUpdate() > 0;
+            pstmt.executeUpdate();
         }
     }
 
@@ -985,24 +972,7 @@ public class DatabaseManager {
     /**
      * Leaderboard entry class
      */
-    public static class LeaderboardEntry {
-        public final int userId;
-        public final String username;
-        public final int gamesPlayed;
-        public final double avgScore;
-        public final double worstScore;
-        public final double bestScore;
-        public final Timestamp lastPlayed;
-
-        public LeaderboardEntry(int userId, String username, int gamesPlayed, double avgScore,
-                double worstScore, double bestScore, Timestamp lastPlayed) {
-            this.userId = userId;
-            this.username = username;
-            this.gamesPlayed = gamesPlayed;
-            this.avgScore = avgScore;
-            this.worstScore = worstScore;
-            this.bestScore = bestScore;
-            this.lastPlayed = lastPlayed;
-        }
+    public record LeaderboardEntry(int userId, String username, int gamesPlayed, double avgScore, double worstScore,
+                                       double bestScore, Timestamp lastPlayed) {
     }
 }

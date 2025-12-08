@@ -14,10 +14,10 @@ class GameViewer {
 
         // Player colors
         this.playerColors = [
-            'rgb(0, 255, 100)',   // Player 1
-            'rgb(100, 100, 255)', // Player 2
-            'rgb(100, 255, 100)', // Player 3
-            'rgb(150, 155, 100)'  // Player 4
+            'rgb(203, 14, 64)',   // Player 1
+            'rgb(144, 213, 255)', // Player 2
+            'rgb(144, 238, 144)', // Player 3
+            'rgb(255, 165, 0)'  // Player 4
         ];
 
         // Form colors (matching Java implementation)
@@ -78,11 +78,9 @@ class GameViewer {
 
     loadGameData(gameData) {
         // Parse compact format: {n: mazeName, h: history}
-        const rawHistory = gameData.h || gameData.gameHistory; // Support both formats
+        const rawHistory = gameData.h || gameData.gameHistory;
         this.mazeName = gameData.n || gameData.mazeName || 'Unknown Maze';
 
-        // Convert compact format to expanded format
-        // Need to process sequentially for delta states
         this.gameHistory = [];
         for (let i = 0; i < rawHistory.length; i++) {
             this.gameHistory.push(this.parseCompactState(rawHistory[i], i, this.gameHistory));
@@ -547,48 +545,11 @@ class GameViewer {
     }
 }
 
-// Initialize the game viewer
 const viewer = new GameViewer();
 
-// Example: Load game data from a JSON file or API
-// This would typically be loaded from your Java backend
 function loadGameFromJSON(jsonData) {
     viewer.loadGameData(jsonData);
 }
 
-// For demonstration, you can expose this globally
 window.gameViewer = viewer;
 window.loadGameFromJSON = loadGameFromJSON;
-
-// Example of expected data format:
-/*
-const exampleGameData = {
-    mazeName: "Test Maze",
-    gameHistory: [
-        {
-            turnNumber: 1,
-            mazeWidth: 20,
-            mazeHeight: 20,
-            players: {
-                1: {
-                    id: 1,
-                    x: 0,
-                    y: 0,
-                    score: 0,
-                    formsCollected: 0,
-                    formsRequired: 4,
-                    active: true,
-                    finished: false
-                }
-            },
-            cells: [], // 2D array of cell objects
-            playerLogs: {
-                1: {
-                    stdout: "Player output",
-                    stderr: "Error messages"
-                }
-            }
-        }
-    ]
-};
-*/

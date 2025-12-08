@@ -180,13 +180,6 @@ public class GameEngine {
     }
 
     public void runGame() {
-        // Viewer removed
-        // SwingUtilities.invokeLater(() -> {
-        // viewer = new GameViewer(maze);
-        // viewer.showViewer();
-        // });
-
-        // Wait for viewer to initialize
         try {
             Thread.sleep(500);
         } catch (InterruptedException e) {
@@ -208,13 +201,6 @@ public class GameEngine {
         captureGameState();
         System.out.println("\n=== Game Over ===");
         printFinalResults();
-
-        // Add final snapshot - removed
-        // captureSnapshot(referee.getCurrentTurn(), "=== Game Over ===", "", "", "");
-
-        // Save logs
-        savePlayerLogs();
-
         // Cleanup
         for (PlayerProcess process : playerProcesses.values()) {
             process.destroy();
@@ -307,7 +293,6 @@ public class GameEngine {
         if (turnInfo == 1)
             System.out.println();
 
-        // Collect all player stdout and stderr
         StringBuilder playerStdoutAll = new StringBuilder();
         StringBuilder playerStderrAll = new StringBuilder();
         for (Player player : players) {
@@ -315,9 +300,7 @@ public class GameEngine {
             String stdout = process.getStdout();
             String stderr = process.getStderr();
 
-            // Store logs for GUI viewer
             currentTurnLogs.put(player.getId(), new PlayerLog(stdout, stderr));
-
             if (!stdout.isEmpty()) {
                 playerStdoutAll.append("=== Player ").append(player.getId()).append(" stdout ===\n");
                 playerStdoutAll.append(stdout);
@@ -331,16 +314,10 @@ public class GameEngine {
 
         // Capture snapshot with all output streams
         String gameLog = outputCapture.toString();
-        String playerStdout = playerStdoutAll.toString();
         String playerStderr = playerStderrAll.toString();
-        String protocol = protocolCapture.toString();
-        // captureSnapshot call removed
-
-        // Restore original streams
         System.setOut(originalOut);
         System.setErr(originalErr);
 
-        // Print to console
         System.out.print(gameLog);
         if (!playerStderr.isEmpty() && logging == 1) {
             System.err.print(playerStderr);
@@ -375,7 +352,6 @@ public class GameEngine {
     private void printFinalResults() {
         System.out.println("Final Scores:");
 
-        // Check for Last Player Standing bonus
         long activePlayers = players.stream().filter(Player::isActive).count();
         if (activePlayers == 1) {
             Player lastStanding = players.stream().filter(Player::isActive).findFirst().orElse(null);
@@ -419,31 +395,10 @@ public class GameEngine {
         }
     }
 
-    private void savePlayerLogs() {
-        for (int i = 0; i < players.size(); i++) {
-            Player player = players.get(i);
-            int playerId = player.getId();
-            StringBuilder log = playerLogs.get(playerId);
-            if (log != null && i < jarPaths.size()) {
-                String jarPath = jarPaths.get(i);
-                String jarName = new File(jarPath).getName();
-                String logFileName = jarName + ".txt"; // "with the jar name"
-
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFileName))) {
-                    writer.write(log.toString());
-                    System.out.println("Saved protocol log for Player " + playerId + " to " + logFileName);
-                } catch (IOException e) {
-                    System.err.println("Failed to save log for Player " + playerId + ": " + e.getMessage());
-                }
-            }
-        }
-    }
-
     /**
      * Capture current game state for GUI viewer
      */
     private void captureGameState() {
-        // Get current cell grid
         Cell[][] cellGrid = new Cell[maze.getWidth()][maze.getHeight()];
         for (int x = 0; x < maze.getWidth(); x++) {
             for (int y = 0; y < maze.getHeight(); y++) {

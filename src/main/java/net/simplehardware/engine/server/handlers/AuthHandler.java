@@ -102,64 +102,57 @@ public class AuthHandler {
     }
 
     /**
-     * Login handler
-     */
-    public static class LoginHandler implements HttpHandler {
-        private final DatabaseManager db;
-        private final SessionManager sessionManager;
-
-        public LoginHandler(DatabaseManager db, SessionManager sessionManager) {
-            this.db = db;
-            this.sessionManager = sessionManager;
-        }
+         * Login handler
+         */
+    public record LoginHandler(DatabaseManager db, SessionManager sessionManager) implements HttpHandler {
 
         @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            if (!"POST".equals(exchange.getRequestMethod())) {
-                sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
-                return;
-            }
-
-            try {
-                // Parse request body
-                String body = new Scanner(exchange.getRequestBody(), StandardCharsets.UTF_8).useDelimiter("\\A").next();
-                @SuppressWarnings("unchecked")
-                Map<String, String> request = gson.fromJson(body, Map.class);
-
-                String username = request.get("username");
-                String password = request.get("password");
-
-                // Get user
-                User user = db.getUserByUsername(username);
-                if (user == null) {
-                    sendResponse(exchange, 401, Map.of("error", "Invalid credentials"));
+            public void handle(HttpExchange exchange) throws IOException {
+                if (!"POST".equals(exchange.getRequestMethod())) {
+                    sendResponse(exchange, 405, Map.of("error", "Method not allowed"));
                     return;
                 }
 
-                // Verify password
-                if (!PasswordHasher.verifyPassword(password, user.getPasswordHash())) {
-                    sendResponse(exchange, 401, Map.of("error", "Invalid credentials"));
-                    return;
+                try {
+                    // Parse request body
+                    String body = new Scanner(exchange.getRequestBody(), StandardCharsets.UTF_8).useDelimiter("\\A").next();
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> request = gson.fromJson(body, Map.class);
+
+                    String username = request.get("username");
+                    String password = request.get("password");
+
+                    // Get user
+                    User user = db.getUserByUsername(username);
+                    if (user == null) {
+                        sendResponse(exchange, 401, Map.of("error", "Invalid credentials"));
+                        return;
+                    }
+
+                    // Verify password
+                    if (!PasswordHasher.verifyPassword(password, user.getPasswordHash())) {
+                        sendResponse(exchange, 401, Map.of("error", "Invalid credentials"));
+                        return;
+                    }
+
+                    // Create session
+                    String token = sessionManager.createSession(user.getId(), user.getUsername());
+
+                    // Send response
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("success", true);
+                    response.put("token", token);
+                    response.put("userId", user.getId());
+                    response.put("username", user.getUsername());
+
+                    sendResponse(exchange, 200, response);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    sendResponse(exchange, 500, Map.of("error", "Internal server error: " + e.getMessage()));
                 }
-
-                // Create session
-                String token = sessionManager.createSession(user.getId(), user.getUsername());
-
-                // Send response
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", true);
-                response.put("token", token);
-                response.put("userId", user.getId());
-                response.put("username", user.getUsername());
-
-                sendResponse(exchange, 200, response);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                sendResponse(exchange, 500, Map.of("error", "Internal server error: " + e.getMessage()));
             }
         }
-    }
 
     /**
      * Logout handler

@@ -1,8 +1,5 @@
 package net.simplehardware.engine.cells;
 
-/**
- * Finish/goal cell for a specific player
- */
 public class FinishCell extends Cell {
     private final int playerId;
     private int requiredFormCount;

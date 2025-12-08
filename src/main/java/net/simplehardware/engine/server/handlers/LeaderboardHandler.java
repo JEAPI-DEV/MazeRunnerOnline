@@ -1,6 +1,5 @@
 package net.simplehardware.engine.server.handlers;
 
-import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import net.simplehardware.engine.server.database.DatabaseManager;
@@ -14,13 +13,7 @@ import java.util.Map;
 /**
  * Leaderboard handler
  */
-public class LeaderboardHandler implements HttpHandler {
-    private static final Gson gson = new Gson();
-    private final DatabaseManager db;
-
-    public LeaderboardHandler(DatabaseManager db) {
-        this.db = db;
-    }
+public record LeaderboardHandler(DatabaseManager db) implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -63,12 +56,12 @@ public class LeaderboardHandler implements HttpHandler {
             for (DatabaseManager.LeaderboardEntry entry : entries) {
                 Map<String, Object> entryData = new HashMap<>();
                 entryData.put("rank", rank++);
-                entryData.put("username", entry.username);
-                entryData.put("gamesPlayed", entry.gamesPlayed);
-                entryData.put("avgScore", entry.avgScore);
-                entryData.put("bestScore", entry.bestScore);
-                entryData.put("worstScore", entry.worstScore);
-                entryData.put("lastPlayed", entry.lastPlayed != null ? entry.lastPlayed.toString() : null);
+                entryData.put("username", entry.username());
+                entryData.put("gamesPlayed", entry.gamesPlayed());
+                entryData.put("avgScore", entry.avgScore());
+                entryData.put("bestScore", entry.bestScore());
+                entryData.put("worstScore", entry.worstScore());
+                entryData.put("lastPlayed", entry.lastPlayed() != null ? entry.lastPlayed().toString() : null);
                 leaderboard.add(entryData);
             }
 

@@ -7,6 +7,5 @@ public class MazeInfoData {
     public String name;
     public List<FormInfo> forms;
     public String maze;
-    public List<String> playerJars;
 }
 

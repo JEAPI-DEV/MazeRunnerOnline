@@ -69,15 +69,7 @@ public class SessionManager {
     }
 
     /**
-     * Session data class
-     */
-    public static class SessionData {
-        public final int userId;
-        public final String username;
-
-        public SessionData(int userId, String username) {
-            this.userId = userId;
-            this.username = username;
-        }
-    }
+         * Session data class
+         */
+    public record SessionData(int userId, String username) { }
 }

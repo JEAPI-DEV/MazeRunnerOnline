@@ -34,7 +34,6 @@ public class Referee {
             return ActionResult.fail("INACTIVE");
         }
 
-        // Check if player is talking (penalty turn)
         if (player.isTalking()) {
             player.addScore(-5);
             return ActionResult.fail("TALKING");
@@ -85,10 +84,7 @@ public class Referee {
                 return ActionResult.fail("BLOCKED");
             }
 
-            // Move the player
             player.setPosition(newX, newY);
-
-            // Collision check moved to updateTurn to handle swapping correctly
 
             return ActionResult.ok(direction.name());
         } catch (IllegalArgumentException e) {
@@ -303,22 +299,16 @@ public class Referee {
             return true;
         }
 
-        // Check if any active player has finished
         for (Player player : players) {
             if (player.isFinished()) {
                 return true;
             }
         }
-
-        // Check if no players are still active
         long activePlayers = players.stream().filter(Player::isActive).count();
         return activePlayers == 0;
     }
 
     public Player getWinner() {
-        // Find player with highest score
-        // Tie-breaker: Number of collected forms
-
         List<Player> sortedPlayers = new java.util.ArrayList<>(players);
         sortedPlayers.sort((p1, p2) -> {
             int scoreCompare = Integer.compare(p2.getScore(), p1.getScore());

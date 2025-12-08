@@ -25,12 +25,6 @@ public enum Direction {
         return dy;
     }
 
-    public boolean isOpositeTo(Direction dir) {
-        if (dir == null)
-            return false;
-        return this.dx + dir.dx == 0 && this.dy + dir.dy == 0;
-    }
-
     public static Direction fromString(String dir) {
         return valueOf(dir.toUpperCase());
     }

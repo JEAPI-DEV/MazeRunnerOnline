@@ -11,31 +11,13 @@ import java.io.Serializable;
 /**
  * Snapshot of a cell's state
  */
-public class CellSnapshot implements Serializable {
+public record CellSnapshot(CellType type, int x, int y, Character form, Integer formOwner, boolean hasSheet,
+                           Integer finishPlayerId) implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private final CellType type;
-    private final int x;
-    private final int y;
-    private final Character form;
-    private final Integer formOwner;
-    private final boolean hasSheet;
-    private final Integer finishPlayerId;
-
     public enum CellType {
         WALL, FLOOR, FINISH
-    }
-
-    private CellSnapshot(CellType type, int x, int y, Character form, Integer formOwner,
-            boolean hasSheet, Integer finishPlayerId) {
-        this.type = type;
-        this.x = x;
-        this.y = y;
-        this.form = form;
-        this.formOwner = formOwner;
-        this.hasSheet = hasSheet;
-        this.finishPlayerId = finishPlayerId;
     }
 
     public static CellSnapshot fromCell(Cell cell) {
@@ -53,37 +35,5 @@ public class CellSnapshot implements Serializable {
         // Default to floor
         return new CellSnapshot(CellType.FLOOR, cell.getX(), cell.getY(),
                 null, null, false, null);
-    }
-
-    public CellType getType() {
-        return type;
-    }
-
-    public int getX() {
-        return x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public Character getForm() {
-        return form;
-    }
-
-    public String fetchFormID(){
-        return form.toString() + formOwner.toString();
-    }
-
-    public Integer getFormOwner() {
-        return formOwner;
-    }
-
-    public boolean hasSheet() {
-        return hasSheet;
-    }
-
-    public Integer getFinishPlayerId() {
-        return finishPlayerId;
     }
 }

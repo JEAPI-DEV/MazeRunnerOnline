@@ -98,8 +98,8 @@ public class ServerMode {
         createContext(server, "/api/lobby/start", new LobbyHandler.StartLobbyHandler(db, sessionManager, gameService), debugMode);
         createContext(server, "/api/lobby/", new LobbyHandler.GetLobbyHandler(db, sessionManager), debugMode);
 
-        createContext(server, "/api/game/play", new GameHandler.PlayGameHandler(db, sessionManager, mazeService, gameService), debugMode);
-        createContext(server, "/api/game-result", new GameHandler.GameResultHandler(db, sessionManager), debugMode);
+        createContext(server, "/api/game/play", new GameHandler.PlayGameHandler(db, sessionManager, gameService), debugMode);
+        createContext(server, "/api/game-result", new GameHandler.GameResultHandler(db), debugMode);
         createContext(server, "/api/user/history", new GameHandler.UserHistoryHandler(db, sessionManager), debugMode);
         createContext(server, "/api/leaderboard", new LeaderboardHandler(db), debugMode);
         createContext(server, "/api/mazes", new GameHandler.ListMazesHandler(db, sessionManager), debugMode);

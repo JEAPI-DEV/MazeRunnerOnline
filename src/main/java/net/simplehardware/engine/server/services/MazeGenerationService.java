@@ -1,14 +1,10 @@
 package net.simplehardware.engine.server.services;
 
-import com.google.gson.Gson;
 import net.simplehardware.engine.server.database.DatabaseManager;
 import net.simplehardware.engine.server.database.models.Maze;
-import net.simplehardware.models.MazeInfoData;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
@@ -23,7 +19,6 @@ public class MazeGenerationService {
     private final String mazeCreatorJarPath;
     private final String mazesDirectory;
     private final ScheduledExecutorService scheduler;
-    private final Random random;
 
     // Generation parameters
     private static final int EASY_FORMS = 2;
@@ -111,9 +106,7 @@ public class MazeGenerationService {
         this.mazeCreatorJarPath = mazeCreatorJarPath;
         this.mazesDirectory = mazesDirectory;
         this.scheduler = Executors.newScheduledThreadPool(1);
-        this.random = new Random();
 
-        // Create mazes directory if it doesn't exist
         new File(mazesDirectory).mkdirs();
     }
 
@@ -124,11 +117,8 @@ public class MazeGenerationService {
      */
     public void startScheduledGeneration(int intervalHours) {
         System.out.println("Starting maze generation service (every " + intervalHours + " hours)");
-
-        // Generate initial batch immediately
         generateMazeBatch();
 
-        // Schedule periodic generation
         scheduler.scheduleAtFixedRate(
                 this::generateMazeBatch,
                 intervalHours,
@@ -159,20 +149,16 @@ public class MazeGenerationService {
      */
     private String generateUniqueMazeName(Maze.Difficulty difficulty) throws Exception {
         Random random = new Random();
-        String name;
         int attempts = 0;
         int maxAttempts = 100;
 
         do {
-            // Pick random alphabet code and animal name
             String alphabetCode = Alphabet_codes[random.nextInt(Alphabet_codes.length)];
             String animalName = animal_names[random.nextInt(animal_names.length)];
 
             // Create name with difficulty prefix
             final String candidateName = alphabetCode + "_" + animalName + "_" + difficulty.name().toLowerCase();
-
-            // Check if name already exists in database
-            List<net.simplehardware.engine.server.database.models.Maze> existingMazes = db.getActiveMazes();
+            List<Maze> existingMazes = db.getActiveMazes();
             boolean nameExists = existingMazes.stream()
                     .anyMatch(m -> m.getName().equals(candidateName));
 
@@ -182,8 +168,6 @@ public class MazeGenerationService {
 
             attempts++;
         } while (attempts < maxAttempts);
-
-        // Fallback to timestamp-based name if we can't find a unique combination
         return difficulty.name().toLowerCase() + "_maze_" + System.currentTimeMillis();
     }
 
@@ -221,8 +205,6 @@ public class MazeGenerationService {
             throws Exception {
         Random random = new Random();
         int targetSteps = minSteps + random.nextInt(maxSteps - minSteps + 1);
-
-        // Generate unique name using alphabet codes and animal names
         String mazeName = generateUniqueMazeName(difficulty);
         String outputPath = mazesDirectory + "/" + mazeName + ".json";
 
@@ -241,8 +223,6 @@ public class MazeGenerationService {
 
         // Redirect output for debugging
         processBuilder.inheritIO();
-
-        // Execute maze generation
         Process process = processBuilder.start();
         try {
             int exitCode = process.waitFor();
@@ -254,47 +234,13 @@ public class MazeGenerationService {
             throw new IOException("Maze generation interrupted", e);
         }
 
-        // Verify the file was created
         File mazeFile = new File(outputPath);
         if (!mazeFile.exists()) {
             throw new IOException("Maze file was not created: " + outputPath);
         }
-
-        // Store in database
-        net.simplehardware.engine.server.database.models.Maze maze = db.createMaze(
+        Maze maze = db.createMaze(
                 mazeName, outputPath, targetSteps, forms, size, difficulty);
         System.out.println("  ✓ Maze created with ID: " + maze.getId() + ", target steps: " + targetSteps);
     }
 
-    /**
-     * Generate a unique maze name
-     */
-    private String generateMazeName(Maze.Difficulty difficulty) {
-        long timestamp = System.currentTimeMillis();
-        String prefix = difficulty.name().toLowerCase();
-        return String.format("%s_maze_%d_%04d", prefix, timestamp, random.nextInt(10000));
-    }
-
-    /**
-     * Read the minimum steps from a generated maze file
-     * Since we don't store this in the maze file, we'll use the requested prefSteps
-     */
-    private int readMazeMinSteps(String mazePath) {
-        // The maze file doesn't contain the actual minimum steps
-        // We'll need to calculate this or use the requested prefSteps
-        // For now, we'll return a default value and let the database store the
-        // requested value
-        return 20; // This will be overridden by the actual prefSteps passed to createMaze
-    }
-
-    /**
-     * Deactivate old mazes
-     */
-    public void deactivateOldMazes(int daysOld) {
-        try {
-            db.deactivateOldMazes(daysOld);
-        } catch (SQLException e) {
-            System.err.println("Error deactivating old mazes: " + e.getMessage());
-        }
-    }
 }

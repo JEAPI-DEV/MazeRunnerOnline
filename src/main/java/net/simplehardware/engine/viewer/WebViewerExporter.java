@@ -112,14 +112,14 @@ public class WebViewerExporter {
 
             if (prevPlayer == null || !playersEqual(prevPlayer, currPlayer)) {
                 deltas.put(id, new Object[] {
-                        currPlayer.getId(),
-                        currPlayer.getX(),
-                        currPlayer.getY(),
-                        currPlayer.getScore(),
-                        currPlayer.getFormsCollected(),
-                        currPlayer.getFormsRequired(),
-                        currPlayer.isActive() ? 1 : 0,
-                        currPlayer.isFinished() ? 1 : 0
+                        currPlayer.id(),
+                        currPlayer.x(),
+                        currPlayer.y(),
+                        currPlayer.score(),
+                        currPlayer.formsCollected(),
+                        currPlayer.formsRequired(),
+                        currPlayer.active() ? 1 : 0,
+                        currPlayer.finished() ? 1 : 0
                 });
             }
         }
@@ -128,12 +128,12 @@ public class WebViewerExporter {
     }
 
     private static boolean playersEqual(GameState.PlayerSnapshot p1, GameState.PlayerSnapshot p2) {
-        return p1.getX() == p2.getX() &&
-                p1.getY() == p2.getY() &&
-                p1.getScore() == p2.getScore() &&
-                p1.getFormsCollected() == p2.getFormsCollected() &&
-                p1.isActive() == p2.isActive() &&
-                p1.isFinished() == p2.isFinished();
+        return p1.x() == p2.x() &&
+                p1.y() == p2.y() &&
+                p1.score() == p2.score() &&
+                p1.formsCollected() == p2.formsCollected() &&
+                p1.active() == p2.active() &&
+                p1.finished() == p2.finished();
     }
 
     private static List<Object[]> getCellDeltas(CellSnapshot[][] prev, CellSnapshot[][] curr) {
@@ -166,10 +166,10 @@ public class WebViewerExporter {
             PlayerLog currLog = entry.getValue();
             PlayerLog prevLog = prev.get(id);
 
-            String currStdout = currLog.getStdout();
-            String currStderr = currLog.getStderr();
-            String prevStdout = prevLog != null ? prevLog.getStdout() : "";
-            String prevStderr = prevLog != null ? prevLog.getStderr() : "";
+            String currStdout = currLog.stdout();
+            String currStderr = currLog.stderr();
+            String prevStdout = prevLog != null ? prevLog.stdout() : "";
+            String prevStderr = prevLog != null ? prevLog.stderr() : "";
 
             if (!currStdout.equals(prevStdout) || !currStderr.equals(prevStderr)) {
                 if ((currStdout != null && !currStdout.isEmpty()) ||
@@ -188,14 +188,14 @@ public class WebViewerExporter {
         for (Map.Entry<Integer, GameState.PlayerSnapshot> entry : players.entrySet()) {
             GameState.PlayerSnapshot p = entry.getValue();
             result.put(entry.getKey(), new Object[] {
-                    p.getId(),
-                    p.getX(),
-                    p.getY(),
-                    p.getScore(),
-                    p.getFormsCollected(),
-                    p.getFormsRequired(),
-                    p.isActive() ? 1 : 0,
-                    p.isFinished() ? 1 : 0
+                    p.id(),
+                    p.x(),
+                    p.y(),
+                    p.score(),
+                    p.formsCollected(),
+                    p.formsRequired(),
+                    p.active() ? 1 : 0,
+                    p.finished() ? 1 : 0
             });
         }
 
@@ -219,7 +219,7 @@ public class WebViewerExporter {
     private static String convertCell(CellSnapshot cell) {
         StringBuilder sb = new StringBuilder();
 
-        switch (cell.getType()) {
+        switch (cell.type()) {
             case WALL:
                 sb.append('W');
                 break;
@@ -232,27 +232,27 @@ public class WebViewerExporter {
                 break;
         }
 
-        if (cell.getForm() != null) {
-            sb.append(',').append(cell.getForm());
-            if (cell.getFormOwner() != null) {
-                sb.append(',').append(cell.getFormOwner());
+        if (cell.form() != null) {
+            sb.append(',').append(cell.form());
+            if (cell.formOwner() != null) {
+                sb.append(',').append(cell.formOwner());
             } else {
                 sb.append(',');
             }
         }
 
         if (cell.hasSheet()) {
-            if (cell.getForm() == null)
+            if (cell.form() == null)
                 sb.append(",,");
             sb.append(",S");
         }
 
-        if (cell.getFinishPlayerId() != null) {
-            if (cell.getForm() == null && !cell.hasSheet())
+        if (cell.finishPlayerId() != null) {
+            if (cell.form() == null && !cell.hasSheet())
                 sb.append(",,");
             if (!cell.hasSheet())
                 sb.append(',');
-            sb.append(",F:").append(cell.getFinishPlayerId());
+            sb.append(",F:").append(cell.finishPlayerId());
         }
 
         return sb.toString();
@@ -263,8 +263,8 @@ public class WebViewerExporter {
 
         for (Map.Entry<Integer, PlayerLog> entry : playerLogs.entrySet()) {
             PlayerLog log = entry.getValue();
-            String stdout = log.getStdout();
-            String stderr = log.getStderr();
+            String stdout = log.stdout();
+            String stderr = log.stderr();
             if ((stdout != null && !stdout.isEmpty()) || (stderr != null && !stderr.isEmpty())) {
                 result.put(entry.getKey(), new String[] { stdout, stderr });
             }

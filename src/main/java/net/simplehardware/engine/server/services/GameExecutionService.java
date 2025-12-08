@@ -13,7 +13,6 @@ import net.simplehardware.models.MazeInfoData;
 import com.google.gson.Gson;
 
 import java.io.FileReader;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -109,7 +108,7 @@ public class GameExecutionService {
         int stepsTaken = finalState.getTurnNumber();
 
         GameState.PlayerSnapshot playerSnapshot = finalState.getPlayers().get(1);
-        boolean completed = playerSnapshot != null && playerSnapshot.isFinished() && !timedOut;
+        boolean completed = playerSnapshot != null && playerSnapshot.finished() && !timedOut;
 
         double scorePercentage = calculateScore(stepsTaken, mazeModel.getMinSteps(), completed);
         // Export game data for replay (even if timed out, so user can review)
@@ -264,7 +263,7 @@ public class GameExecutionService {
             int playerId = i + 1;
 
             GameState.PlayerSnapshot playerSnapshot = finalState.getPlayers().get(playerId);
-            boolean completed = playerSnapshot != null && playerSnapshot.isFinished() && !timedOut;
+            boolean completed = playerSnapshot != null && playerSnapshot.finished() && !timedOut;
             double scorePercentage = calculateScore(stepsTaken, mazeModel.getMinSteps(), completed);
 
             GameResult result = db.createGameResult(

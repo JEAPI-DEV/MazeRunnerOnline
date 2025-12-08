@@ -79,61 +79,10 @@ public class GameState implements Serializable {
         return playerLogs;
     }
 
-    public static class PlayerSnapshot implements Serializable {
-        @Serial
-        private static final long serialVersionUID = 1L;
+    public record PlayerSnapshot(int id, int x, int y, int score, int formsCollected, int formsRequired, boolean active,
+                                 boolean finished) implements Serializable {
+            @Serial
+            private static final long serialVersionUID = 1L;
 
-        private final int id;
-        private final int x;
-        private final int y;
-        private final int score;
-        private final int formsCollected;
-        private final int formsRequired;
-        private final boolean active;
-        private final boolean finished;
-
-        public PlayerSnapshot(int id, int x, int y, int score, int formsCollected,
-                int formsRequired, boolean active, boolean finished) {
-            this.id = id;
-            this.x = x;
-            this.y = y;
-            this.score = score;
-            this.formsCollected = formsCollected;
-            this.formsRequired = formsRequired;
-            this.active = active;
-            this.finished = finished;
-        }
-
-        public int getId() {
-            return id;
-        }
-
-        public int getX() {
-            return x;
-        }
-
-        public int getY() {
-            return y;
-        }
-
-        public int getScore() {
-            return score;
-        }
-
-        public int getFormsCollected() {
-            return formsCollected;
-        }
-
-        public int getFormsRequired() {
-            return formsRequired;
-        }
-
-        public boolean isActive() {
-            return active;
-        }
-
-        public boolean isFinished() {
-            return finished;
-        }
     }
 }

@@ -22,8 +22,8 @@ public class LoggingHandler implements HttpHandler {
         String path = exchange.getRequestURI().getPath();
         String remoteAddr = exchange.getRemoteAddress().getAddress().getHostAddress();
         
-        System.out.println(String.format("[%s] %s %s from %s", 
-            getCurrentTimestamp(), method, path, remoteAddr));
+        System.out.printf("[%s] %s %s from %s%n",
+            getCurrentTimestamp(), method, path, remoteAddr);
         
         try {
             delegate.handle(exchange);
@@ -32,16 +32,16 @@ public class LoggingHandler implements HttpHandler {
             int responseCode = exchange.getResponseCode();
             
             if (duration > 1000) {
-                System.err.println(String.format("[SLOW] %s %s took %d ms (response: %d)", 
-                    method, path, duration, responseCode));
+                System.err.printf("[SLOW] %s %s took %d ms (response: %d)%n",
+                    method, path, duration, responseCode);
             } else {
-                System.out.println(String.format("[%s] %s %s completed in %d ms (response: %d)", 
-                    getCurrentTimestamp(), method, path, duration, responseCode));
+                System.out.printf("[%s] %s %s completed in %d ms (response: %d)%n",
+                    getCurrentTimestamp(), method, path, duration, responseCode);
             }
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            System.err.println(String.format("[ERROR] %s %s failed after %d ms: %s", 
-                method, path, duration, e.getMessage()));
+            System.err.printf("[ERROR] %s %s failed after %d ms: %s%n",
+                method, path, duration, e.getMessage());
             throw e;
         }
     }

@@ -167,23 +167,12 @@ public class Maze {
 
     private int findOpponentInDirection(int startX, int startY, Direction dir, List<Player> allPlayers,
             Player currentPlayer) {
-        // Look further in the direction
-        // "Gegner(n) zwei Felder weiter als dieses Nachbarfeld"
-        // So we start checking from startX + dx, startY + dy
-
         int dx = dir.getDx();
         int dy = dir.getDy();
 
         int checkX = startX + dx;
         int checkY = startY + dy;
-        int distance = 1; // Distance from neighbor
-
-        // We scan until we hit a wall or board edge?
-        // Requirement says "Sichtbarkeit von anderen Bots in direkter Linie"
-        // Usually implies line of sight blocked by walls.
-        // But the example "Gegner(n) zwei Felder weiter" implies we just report
-        // distance.
-        // Let's assume line of sight is blocked by walls.
+        int distance = 1; // Distance from neighbor.
 
         while (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
             Cell cell = cells[checkX][checkY];
@@ -211,11 +200,8 @@ public class Maze {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Cell cell = cells[x][y];
-                if (cell instanceof FinishCell) {
-                    FinishCell finishCell = (FinishCell) cell;
+                if (cell instanceof FinishCell finishCell) {
                     int playerId = finishCell.getPlayerId();
-
-                    // Find the player and get their assigned form count
                     for (Player player : players) {
                         if (player.getId() == playerId) {
                             finishCell.setRequiredFormCount(player.getAssignedForms().size());
@@ -238,8 +224,6 @@ public class Maze {
         }
 
         System.out.println("Loaded player IDs: " + loadedPlayerIds);
-
-        // Remove forms and finish cells for unloaded players
         int formsRemoved = 0;
         int finishRemoved = 0;
         for (int y = 0; y < height; y++) {
@@ -274,8 +258,7 @@ public class Maze {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 Cell cell = cells[x][y];
-                if (cell instanceof FloorCell) {
-                    FloorCell floor = (FloorCell) cell;
+                if (cell instanceof FloorCell floor) {
                     if (floor.getForm() != null) {
                         System.out.println("Remaining form: " + floor.getForm() + " for player " + floor.getFormOwner()
                                 + " at (" + x + "," + y + ")");
