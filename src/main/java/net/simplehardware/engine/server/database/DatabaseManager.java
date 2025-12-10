@@ -1,22 +1,31 @@
 package net.simplehardware.engine.server.database;
 
 import net.simplehardware.engine.server.database.models.*;
+import net.simplehardware.engine.server.database.repositories.*;
+import net.simplehardware.engine.server.database.repositories.impl.*;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Database manager for SQLite operations
+ * Acts as a facade over repository implementations
  */
 public class DatabaseManager {
     private final String dbPath;
     private Connection connection;
+    
+    // Repository instances
+    private UserRepository userRepository;
+    private BotRepository botRepository;
+    private MazeRepository mazeRepository;
+    private LobbyRepository lobbyRepository;
+    private GameRepository gameRepository;
+    private MetricsRepository metricsRepository;
 
     public DatabaseManager(String dbPath) {
         this.dbPath = dbPath;
@@ -37,31 +46,36 @@ public class DatabaseManager {
             stmt.execute("PRAGMA cache_size = -64000");  // 64MB cache
             stmt.execute("PRAGMA temp_store = MEMORY");  // Keep temp tables in memory
         }
-
-        // Create tables from schema file
         executeSchema();
+        initializeRepositories();
 
         System.out.println("Database initialized: " + dbPath);
+    }
+    
+    /**
+     * Initialize repository instances
+     */
+    private void initializeRepositories() {
+        this.userRepository = new UserRepositoryImpl(connection);
+        this.botRepository = new BotRepositoryImpl(connection);
+        this.mazeRepository = new MazeRepositoryImpl(connection);
+        this.lobbyRepository = new LobbyRepositoryImpl(connection);
+        this.gameRepository = new GameRepositoryImpl(connection);
+        this.metricsRepository = new MetricsRepositoryImpl(connection);
     }
 
 
 
     public void heartbeatLobby(int lobbyId) throws SQLException {
-        String sql = "UPDATE lobbies SET last_heartbeat = CURRENT_TIMESTAMP WHERE id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, lobbyId);
-            pstmt.executeUpdate();
-        }
+        lobbyRepository.heartbeatLobby(lobbyId);
     }
 
     public void cleanupInactiveLobbies() throws SQLException {
-        String sql = "DELETE FROM lobbies WHERE last_heartbeat < datetime('now', '-30 seconds') AND status != 'FINISHED'";
-        try (Statement stmt = connection.createStatement()) {
-            int deleted = stmt.executeUpdate(sql);
-            if (deleted > 0) {
-                System.out.println("Cleaned up " + deleted + " inactive lobbies");
-            }
-        }
+        lobbyRepository.cleanupInactiveLobbies();
+    }
+    
+    public String getMazeName(int mazeId) throws SQLException {
+        return mazeRepository.getMazeName(mazeId);
     }
 
     /**
@@ -116,103 +130,28 @@ public class DatabaseManager {
      * Create a new user
      */
     public User createUser(String username, String passwordHash) throws SQLException {
-        String sql = "INSERT INTO users (username, password_hash) VALUES (?, ?)";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, username);
-            pstmt.setString(2, passwordHash);
-            pstmt.executeUpdate();
-
-            // SQLite doesn't support getGeneratedKeys(), use last_insert_rowid()
-            try (Statement stmt = connection.createStatement();
-                    ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
-                if (rs.next()) {
-                    return getUserById(rs.getInt(1));
-                }
-            }
-        }
-        return null;
+        return userRepository.createUser(username, passwordHash);
     }
 
     /**
      * Get user by ID
      */
     public User getUserById(int id) throws SQLException {
-        String sql = "SELECT * FROM users WHERE id = ?";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, id);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new User(
-                        rs.getInt("id"),
-                        rs.getString("username"),
-                        rs.getString("password_hash"),
-                        rs.getString("user_type"),
-                        rs.getTimestamp("created_at"));
-            }
-        }
-        return null;
-    }
-
-
-
-    public String getMazeName(int mazeId) throws SQLException {
-        String sql = "SELECT name FROM mazes WHERE id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, mazeId);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getString("name");
-            }
-        }
-        return "Unknown Maze";
+        return userRepository.getUserById(id);
     }
 
     /**
      * Get user by username
      */
     public User getUserByUsername(String username) throws SQLException {
-        String sql = "SELECT * FROM users WHERE username = ?";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, username);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new User(
-                        rs.getInt("id"),
-                        rs.getString("username"),
-                        rs.getString("password_hash"),
-                        rs.getString("user_type"),
-                        rs.getTimestamp("created_at"));
-            }
-        }
-        return null;
+        return userRepository.getUserByUsername(username);
     }
 
     /**
      * Search users by username (partial match)
      */
     public List<User> searchUsersByUsername(String query) throws SQLException {
-        String sql = "SELECT * FROM users WHERE username LIKE ? ORDER BY username LIMIT 50";
-        List<User> users = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, "%" + query + "%");
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                users.add(new User(
-                        rs.getInt("id"),
-                        rs.getString("username"),
-                        rs.getString("password_hash"),
-                        rs.getString("user_type"),
-                        rs.getTimestamp("created_at")));
-            }
-        }
-        return users;
+        return userRepository.searchUsersByUsername(query);
     }
 
     // ==================== PLAYER BOT OPERATIONS ====================
@@ -221,185 +160,47 @@ public class DatabaseManager {
      * Create a new player bot
      */
     public PlayerBot createPlayerBot(int userId, String botName, String jarPath) throws SQLException {
-        // Check if this is the first bot for the user, if so make it default
-        boolean isFirstBot = getUserBots(userId).isEmpty();
-
-        String sql = "INSERT INTO player_bots (user_id, bot_name, jar_path, is_default) VALUES (?, ?, ?, ?)";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            pstmt.setString(2, botName);
-            pstmt.setString(3, jarPath);
-            pstmt.setBoolean(4, isFirstBot);
-            pstmt.executeUpdate();
-
-            // SQLite doesn't support getGeneratedKeys(), use last_insert_rowid()
-            try (Statement stmt = connection.createStatement();
-                    ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
-                if (rs.next()) {
-                    return getPlayerBotById(rs.getInt(1));
-                }
-            }
-        }
-        return null;
+        return botRepository.createPlayerBot(userId, botName, jarPath);
     }
 
     /**
      * Get player bot by ID
      */
     public PlayerBot getPlayerBotById(int id) throws SQLException {
-        String sql = "SELECT * FROM player_bots WHERE id = ?";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, id);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new PlayerBot(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("bot_name"),
-                        rs.getString("jar_path"),
-                        rs.getTimestamp("uploaded_at"),
-                        rs.getBoolean("is_default"));
-            }
-        }
-        return null;
+        return botRepository.getPlayerBotById(id);
     }
 
     /**
      * Get all bots for a user
      */
     public List<PlayerBot> getUserBots(int userId) throws SQLException {
-        String sql = "SELECT * FROM player_bots WHERE user_id = ? ORDER BY uploaded_at DESC";
-        List<PlayerBot> bots = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                bots.add(new PlayerBot(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("bot_name"),
-                        rs.getString("jar_path"),
-                        rs.getTimestamp("uploaded_at"),
-                        rs.getBoolean("is_default")));
-            }
-        }
-        return bots;
+        return botRepository.getUserBots(userId);
     }
 
     /**
      * Get user's most recent bot
      */
     public PlayerBot getUserLatestBot(int userId) throws SQLException {
-        String sql = "SELECT * FROM player_bots WHERE user_id = ? ORDER BY uploaded_at DESC LIMIT 1";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new PlayerBot(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("bot_name"),
-                        rs.getString("jar_path"),
-                        rs.getTimestamp("uploaded_at"));
-            }
-        }
-        return null;
+        return botRepository.getUserLatestBot(userId);
     }
 
     /**
      * Set a bot as default for a user
      */
     public void setUserDefaultBot(int userId, int botId) throws SQLException {
-        boolean autoCommit = connection.getAutoCommit();
-        try {
-            connection.setAutoCommit(false);
-
-            String resetSql = "UPDATE player_bots SET is_default = 0 WHERE user_id = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(resetSql)) {
-                pstmt.setInt(1, userId);
-                pstmt.executeUpdate();
-            }
-
-            String setSql = "UPDATE player_bots SET is_default = 1 WHERE id = ? AND user_id = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(setSql)) {
-                pstmt.setInt(1, botId);
-                pstmt.setInt(2, userId);
-                pstmt.executeUpdate();
-            }
-
-            connection.commit();
-        } catch (SQLException e) {
-            connection.rollback();
-            throw e;
-        } finally {
-            connection.setAutoCommit(autoCommit);
-        }
+        botRepository.setUserDefaultBot(userId, botId);
     }
 
     public PlayerBot getUserDefaultBot(int userId) throws SQLException {
-        String sql = "SELECT * FROM player_bots WHERE user_id = ? AND is_default = 1";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new PlayerBot(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("bot_name"),
-                        rs.getString("jar_path"),
-                        rs.getTimestamp("uploaded_at"),
-                        rs.getBoolean("is_default"));
-            }
-        }
-        return null;
+        return botRepository.getUserDefaultBot(userId);
     }
 
     public String deletePlayerBot(int userId, int botId) throws SQLException {
-        PlayerBot bot = getPlayerBotById(botId);
-        if (bot == null || bot.getUserId() != userId) {
-            return null;
-        }
-
-        boolean wasDefault = bot.isDefault();
-
-        String sql = "DELETE FROM player_bots WHERE id = ? AND user_id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, botId);
-            pstmt.setInt(2, userId);
-            int affected = pstmt.executeUpdate();
-
-            if (affected > 0) {
-                // If we deleted the default bot, try to make another one default
-                if (wasDefault) {
-                    PlayerBot latest = getUserLatestBot(userId);
-                    if (latest != null) {
-                        setUserDefaultBot(userId, latest.getId());
-                    }
-                }
-                return bot.getJarPath();
-            }
-        }
-        return null;
+        return botRepository.deletePlayerBot(userId, botId);
     }
 
     public boolean checkBotNameExists(int userId, String botName) throws SQLException {
-        String sql = "SELECT 1 FROM player_bots WHERE user_id = ? AND bot_name = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            pstmt.setString(2, botName);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next();
-            }
-        }
+        return botRepository.checkBotNameExists(userId, botName);
     }
 
     // ==================== MAZE OPERATIONS ====================
@@ -409,141 +210,35 @@ public class DatabaseManager {
      */
     public Maze createMaze(String name, String filePath, int minSteps, int forms, int size, Maze.Difficulty difficulty)
             throws SQLException {
-        String sql = "INSERT INTO mazes (name, file_path, min_steps, forms, size, difficulty) VALUES (?, ?, ?, ?, ?, ?)";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, name);
-            pstmt.setString(2, filePath);
-            pstmt.setInt(3, minSteps);
-            pstmt.setInt(4, forms);
-            pstmt.setInt(5, size);
-            pstmt.setString(6, difficulty.name());
-            pstmt.executeUpdate();
-
-            // SQLite doesn't support getGeneratedKeys(), use last_insert_rowid()
-            try (Statement stmt = connection.createStatement();
-                    ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
-                if (rs.next()) {
-                    return getMazeById(rs.getInt(1));
-                }
-            }
-        }
-        return null;
+        return mazeRepository.createMaze(name, filePath, minSteps, forms, size, difficulty);
     }
 
     /**
      * Get maze by ID
      */
     public Maze getMazeById(int id) throws SQLException {
-        String sql = "SELECT * FROM mazes WHERE id = ?";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, id);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new Maze(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("file_path"),
-                        rs.getInt("min_steps"),
-                        rs.getInt("forms"),
-                        rs.getInt("size"),
-                        Maze.Difficulty.valueOf(rs.getString("difficulty")),
-                        rs.getTimestamp("created_at"),
-                        rs.getBoolean("active"));
-            }
-        }
-        return null;
+        return mazeRepository.getMazeById(id);
     }
 
     /**
      * Get all mazes
      */
     public List<Maze> getAllMazes() throws SQLException {
-        String sql = "SELECT * FROM mazes ORDER BY created_at DESC";
-        List<Maze> mazes = new ArrayList<>();
-
-        try (Statement stmt = connection.createStatement();
-                ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                mazes.add(new Maze(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("file_path"),
-                        rs.getInt("min_steps"),
-                        rs.getInt("forms"),
-                        rs.getInt("size"),
-                        Maze.Difficulty.valueOf(rs.getString("difficulty")),
-                        rs.getTimestamp("created_at"),
-                        rs.getBoolean("active")));
-            }
-        }
-        return mazes;
+        return mazeRepository.getAllMazes();
     }
 
     /**
      * Get all active mazes
      */
     public List<Maze> getActiveMazes() throws SQLException {
-        String sql = "SELECT * FROM mazes WHERE active = 1 ORDER BY created_at DESC";
-        List<Maze> mazes = new ArrayList<>();
-
-        try (Statement stmt = connection.createStatement();
-                ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                mazes.add(new Maze(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("file_path"),
-                        rs.getInt("min_steps"),
-                        rs.getInt("forms"),
-                        rs.getInt("size"),
-                        Maze.Difficulty.valueOf(rs.getString("difficulty")),
-                        rs.getTimestamp("created_at"),
-                        rs.getBoolean("active")));
-            }
-        }
-        return mazes;
+        return mazeRepository.getActiveMazes();
     }
 
     /**
      * Get mazes that a user has not played yet
      */
     public List<Maze> getUnplayedMazes(int userId, String difficulty) throws SQLException {
-        String sql = "SELECT m.* FROM mazes m " +
-                "LEFT JOIN game_results gr ON m.id = gr.maze_id AND gr.user_id = ? " +
-                "WHERE m.active = 1 AND gr.id IS NULL";
-
-        if (difficulty != null) {
-            sql += " AND m.difficulty = ?";
-        }
-
-        List<Maze> mazes = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            if (difficulty != null) {
-                pstmt.setString(2, difficulty);
-            }
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                mazes.add(new Maze(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("file_path"),
-                        rs.getInt("min_steps"),
-                        rs.getInt("forms"),
-                        rs.getInt("size"),
-                        Maze.Difficulty.valueOf(rs.getString("difficulty")),
-                        rs.getTimestamp("created_at"),
-                        rs.getBoolean("active")));
-            }
-        }
-        return mazes;
+        return mazeRepository.getUnplayedMazes(userId, difficulty);
     }
 
     // ==================== GAME RESULT OPERATIONS ====================
@@ -553,390 +248,90 @@ public class DatabaseManager {
      */
     public GameResult createGameResult(int userId, int botId, int mazeId, int stepsTaken,
             double scorePercentage, boolean completed, String gameDataPath) throws SQLException {
-        String sql = "INSERT INTO game_results (user_id, bot_id, maze_id, steps_taken, score_percentage, completed, game_data_path) "
-                +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            pstmt.setInt(2, botId);
-            pstmt.setInt(3, mazeId);
-            pstmt.setInt(4, stepsTaken);
-            pstmt.setDouble(5, scorePercentage);
-            pstmt.setBoolean(6, completed);
-            pstmt.setString(7, gameDataPath);
-            pstmt.executeUpdate();
-
-            // SQLite doesn't support getGeneratedKeys(), use last_insert_rowid()
-            try (Statement stmt = connection.createStatement();
-                    ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
-                if (rs.next()) {
-                    return getGameResultById(rs.getInt(1));
-                }
-            }
-        }
-        return null;
+        return gameRepository.createGameResult(userId, botId, mazeId, stepsTaken, scorePercentage, completed, gameDataPath);
     }
 
     /**
      * Get game result by ID
      */
     public GameResult getGameResultById(int id) throws SQLException {
-        String sql = "SELECT * FROM game_results WHERE id = ?";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, id);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new GameResult(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getInt("bot_id"),
-                        rs.getInt("maze_id"),
-                        rs.getInt("steps_taken"),
-                        rs.getDouble("score_percentage"),
-                        rs.getBoolean("completed"),
-                        rs.getString("game_data_path"),
-                        rs.getTimestamp("played_at"));
-            }
-        }
-        return null;
+        return gameRepository.getGameResultById(id);
     }
 
     /**
      * Get user's game history
      */
     public List<GameResult> getUserGameHistory(int userId, int limit, String type) throws SQLException {
-        String sql = "SELECT * FROM game_results WHERE user_id = ? ";
-
-        if ("MULTIPLAYER".equals(type)) {
-            sql += "AND game_data_path LIKE '%_lobby%' ";
-        } else {
-            sql += "AND game_data_path NOT LIKE '%_lobby%' ";
-        }
-
-        sql += "ORDER BY played_at DESC LIMIT ?";
-
-        List<GameResult> results = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            pstmt.setInt(2, limit);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                results.add(new GameResult(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getInt("bot_id"),
-                        rs.getInt("maze_id"),
-                        rs.getInt("steps_taken"),
-                        rs.getDouble("score_percentage"),
-                        rs.getBoolean("completed"),
-                        rs.getString("game_data_path"),
-                        rs.getTimestamp("played_at")));
-            }
-        }
-        return results;
+        return gameRepository.getUserGameHistory(userId, limit, type);
     }
 
     /**
      * Get user's game history by difficulty
      */
     public List<GameResult> getUserGameHistoryByDifficulty(int userId, String difficulty) throws SQLException {
-        String sql = "SELECT gr.* FROM game_results gr " +
-                "JOIN mazes m ON gr.maze_id = m.id " +
-                "WHERE gr.user_id = ? AND m.difficulty = ? " +
-                "AND gr.game_data_path NOT LIKE '%_lobby%' " +
-                "ORDER BY gr.score_percentage DESC, gr.steps_taken ASC";
-
-        List<GameResult> results = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            pstmt.setString(2, difficulty);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                results.add(new GameResult(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getInt("bot_id"),
-                        rs.getInt("maze_id"),
-                        rs.getInt("steps_taken"),
-                        rs.getDouble("score_percentage"),
-                        rs.getBoolean("completed"),
-                        rs.getString("game_data_path"),
-                        rs.getTimestamp("played_at")));
-            }
-        }
-        return results;
+        return gameRepository.getUserGameHistoryByDifficulty(userId, difficulty);
     }
 
     /**
      * Get the best game result for a user on a specific maze
      */
     public GameResult getBestScoreForMaze(int userId, int mazeId) throws SQLException {
-        String sql = "SELECT * FROM game_results " +
-                "WHERE user_id = ? AND maze_id = ? " +
-                "ORDER BY score_percentage DESC, steps_taken ASC LIMIT 1";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            pstmt.setInt(2, mazeId);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new GameResult(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getInt("bot_id"),
-                        rs.getInt("maze_id"),
-                        rs.getInt("steps_taken"),
-                        rs.getDouble("score_percentage"),
-                        rs.getBoolean("completed"),
-                        rs.getString("game_data_path"),
-                        rs.getTimestamp("played_at"));
-            }
-        }
-        return null;
+        return gameRepository.getBestScoreForMaze(userId, mazeId);
     }
 
     public String deleteGameResult(int gameResultId) throws SQLException {
-        GameResult result = getGameResultById(gameResultId);
-        if (result == null) {
-            return null;
-        }
-
-        String sql = "DELETE FROM game_results WHERE id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, gameResultId);
-            int affected = pstmt.executeUpdate();
-
-            if (affected > 0) {
-                return result.getGameDataPath();
-            }
-        }
-        return null;
+        return gameRepository.deleteGameResult(gameResultId);
     }
 
+    // ==================== LOBBY OPERATIONS ====================
+
     public Lobby createLobby(int hostUserId, String name, int mazeId, int maxPlayers) throws SQLException {
-        String sql = "INSERT INTO lobbies (name, host_user_id, maze_id, max_players, status) VALUES (?, ?, ?, ?, 'WAITING')";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, name);
-            pstmt.setInt(2, hostUserId);
-            pstmt.setInt(3, mazeId);
-            pstmt.setInt(4, maxPlayers);
-
-            int affected = pstmt.executeUpdate();
-            if (affected > 0) {
-                try (Statement stmt = connection.createStatement();
-                        ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
-                    if (rs.next()) {
-                        int lobbyId = rs.getInt(1);
-                        return getLobby(lobbyId);
-                    }
-                }
-            }
-        }
-        return null;
+        return lobbyRepository.createLobby(hostUserId, name, mazeId, maxPlayers);
     }
 
     public Lobby getLobby(int lobbyId) throws SQLException {
-        String sql = "SELECT * FROM lobbies WHERE id = ?";
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, lobbyId);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return new Lobby(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getInt("host_user_id"),
-                        rs.getInt("maze_id"),
-                        rs.getInt("max_players"),
-                        rs.getString("status"),
-                        (Integer) rs.getObject("last_game_id"),
-                        rs.getTimestamp("created_at"));
-            }
-        }
-        return null;
+        return lobbyRepository.getLobby(lobbyId);
     }
 
     public List<Lobby> getActiveLobbies() throws SQLException {
-        String sql = "SELECT * FROM lobbies WHERE status = 'WAITING' ORDER BY created_at DESC";
-        List<Lobby> lobbies = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                lobbies.add(new Lobby(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getInt("host_user_id"),
-                        rs.getInt("maze_id"),
-                        rs.getInt("max_players"),
-                        rs.getString("status"),
-                        (Integer) rs.getObject("last_game_id"),
-                        rs.getTimestamp("created_at")));
-            }
-        }
-        return lobbies;
+        return lobbyRepository.getActiveLobbies();
     }
 
     public boolean joinLobby(int lobbyId, int userId, int botId) throws SQLException {
-        // Check if lobby exists and is waiting
-        Lobby lobby = getLobby(lobbyId);
-        if (lobby == null || !"WAITING".equals(lobby.getStatus())) {
-            return false;
-        }
-
-        // Check if already joined
-        String checkSql = "SELECT 1 FROM lobby_players WHERE lobby_id = ? AND user_id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(checkSql)) {
-            pstmt.setInt(1, lobbyId);
-            pstmt.setInt(2, userId);
-            if (pstmt.executeQuery().next()) {
-                // Already joined, just update bot if needed or return true
-                return true;
-            }
-        }
-
-        // Check player count
-        String countSql = "SELECT COUNT(*) FROM lobby_players WHERE lobby_id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(countSql)) {
-            pstmt.setInt(1, lobbyId);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next() && rs.getInt(1) >= lobby.getMaxPlayers()) {
-                return false;
-            }
-        }
-
-        String sql = "INSERT INTO lobby_players (lobby_id, user_id, bot_id) VALUES (?, ?, ?)";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, lobbyId);
-            pstmt.setInt(2, userId);
-            pstmt.setInt(3, botId);
-            return pstmt.executeUpdate() > 0;
-        }
+        return lobbyRepository.joinLobby(lobbyId, userId, botId);
     }
 
     public boolean leaveLobby(int lobbyId, int userId) throws SQLException {
-        String sql = "DELETE FROM lobby_players WHERE lobby_id = ? AND user_id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, lobbyId);
-            pstmt.setInt(2, userId);
-            return pstmt.executeUpdate() > 0;
-        }
+        return lobbyRepository.leaveLobby(lobbyId, userId);
     }
 
     public List<LobbyPlayer> getLobbyPlayers(int lobbyId) throws SQLException {
-        String sql = "SELECT * FROM lobby_players WHERE lobby_id = ? ORDER BY joined_at";
-        List<LobbyPlayer> players = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, lobbyId);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                players.add(new LobbyPlayer(
-                        rs.getInt("lobby_id"),
-                        rs.getInt("user_id"),
-                        rs.getInt("bot_id"),
-                        rs.getTimestamp("joined_at")));
-            }
-        }
-        return players;
+        return lobbyRepository.getLobbyPlayers(lobbyId);
     }
 
     public void updateLobbyStatus(int lobbyId, String status) throws SQLException {
-        String sql = "UPDATE lobbies SET status = ? WHERE id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, status);
-            pstmt.setInt(2, lobbyId);
-            pstmt.executeUpdate();
-        }
+        lobbyRepository.updateLobbyStatus(lobbyId, status);
     }
 
     public void deleteLobby(int lobbyId) throws SQLException {
-        String sql = "DELETE FROM lobbies WHERE id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, lobbyId);
-            pstmt.executeUpdate();
-        }
+        lobbyRepository.deleteLobby(lobbyId);
     }
 
     public void updateLobbyLastGameId(int lobbyId, int gameId) throws SQLException {
-        String sql = "UPDATE lobbies SET last_game_id = ? WHERE id = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, gameId);
-            pstmt.setInt(2, lobbyId);
-            pstmt.executeUpdate();
-        }
+        lobbyRepository.updateLobbyLastGameId(lobbyId, gameId);
     }
 
+    // ==================== LEADERBOARD OPERATIONS ====================
+
     public List<LeaderboardEntry> getLeaderboard(int limit) throws SQLException {
-        String sql = "SELECT * FROM leaderboard LIMIT ?";
-        List<LeaderboardEntry> entries = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, limit);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                entries.add(new LeaderboardEntry(
-                        rs.getInt("user_id"),
-                        rs.getString("username"),
-                        rs.getInt("games_played"),
-                        rs.getDouble("avg_score"),
-                        rs.getDouble("worst_score"),
-                        rs.getDouble("best_score"),
-                        rs.getTimestamp("last_played")));
-            }
-        }
-        return entries;
+        return metricsRepository.getLeaderboard(limit);
     }
 
     /**
      * Get leaderboard filtered by difficulty
      */
     public List<LeaderboardEntry> getLeaderboardByDifficulty(String difficulty, int limit) throws SQLException {
-        String sql = "SELECT u.id as user_id, u.username, " +
-                "COUNT(gr.id) as games_played, " +
-                "AVG(gr.score_percentage) as avg_score, " +
-                "MIN(gr.score_percentage) as worst_score, " +
-                "MAX(gr.score_percentage) as best_score, " +
-                "MAX(gr.played_at) as last_played " +
-                "FROM users u " +
-                "JOIN game_results gr ON u.id = gr.user_id " +
-                "JOIN mazes m ON gr.maze_id = m.id " +
-                "WHERE m.difficulty = ? " +
-                "GROUP BY u.id, u.username " +
-                "ORDER BY avg_score DESC " +
-                "LIMIT ?";
-        List<LeaderboardEntry> entries = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, difficulty);
-            pstmt.setInt(2, limit);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                entries.add(new LeaderboardEntry(
-                        rs.getInt("user_id"),
-                        rs.getString("username"),
-                        rs.getInt("games_played"),
-                        rs.getDouble("avg_score"),
-                        rs.getDouble("worst_score"),
-                        rs.getDouble("best_score"),
-                        rs.getTimestamp("last_played")));
-            }
-        }
-        return entries;
+        return metricsRepository.getLeaderboardByDifficulty(difficulty, limit);
     }
 
     /**
@@ -949,184 +344,34 @@ public class DatabaseManager {
     // ==================== ADMIN METRICS OPERATIONS ====================
 
     public void recordMetric(String metricType, double value, String metadata) throws SQLException {
-        String sql = "INSERT INTO admin_metrics (metric_type, metric_value, metadata) VALUES (?, ?, ?)";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, metricType);
-            pstmt.setDouble(2, value);
-            pstmt.setString(3, metadata);
-            pstmt.executeUpdate();
-        }
+        metricsRepository.recordMetric(metricType, value, metadata);
     }
 
     public List<Map<String, Object>> getMetricsHistory(String metricType, int hours) throws SQLException {
-        String sql = "SELECT timestamp, metric_value, metadata FROM admin_metrics " +
-                "WHERE metric_type = ? AND timestamp > datetime('now', '-' || ? || ' hours') " +
-                "ORDER BY timestamp DESC";
-        List<Map<String, Object>> metrics = new ArrayList<>();
-
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, metricType);
-            pstmt.setInt(2, hours);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                Map<String, Object> metric = new HashMap<>();
-                metric.put("timestamp", rs.getTimestamp("timestamp"));
-                metric.put("value", rs.getDouble("metric_value"));
-                metric.put("metadata", rs.getString("metadata"));
-                metrics.add(metric);
-            }
-        }
-        return metrics;
+        return metricsRepository.getMetricsHistory(metricType, hours);
     }
 
     public Map<String, Object> getGameStatistics(String period) throws SQLException {
-        String timeFilter = switch (period) {
-            case "daily" -> "datetime('now', '-1 day')";
-            case "weekly" -> "datetime('now', '-7 days')";
-            case "monthly" -> "datetime('now', '-30 days')";
-            default -> "datetime('now', '-1 day')";
-        };
-
-        Map<String, Object> stats = new HashMap<>();
-
-        String sql = "SELECT COUNT(*) as total_games, " +
-                "SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completed_games, " +
-                "AVG(score_percentage) as avg_score, " +
-                "AVG(steps_taken) as avg_steps " +
-                "FROM game_results WHERE played_at > " + timeFilter;
-
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                stats.put("total_games", rs.getInt("total_games"));
-                stats.put("completed_games", rs.getInt("completed_games"));
-                stats.put("avg_score", rs.getDouble("avg_score"));
-                stats.put("avg_steps", rs.getDouble("avg_steps"));
-            }
-        }
-
-        String difficultySql = "SELECT m.difficulty, COUNT(*) as count, AVG(gr.score_percentage) as avg_score " +
-                "FROM game_results gr JOIN mazes m ON gr.maze_id = m.id " +
-                "WHERE gr.played_at > " + timeFilter + " GROUP BY m.difficulty";
-
-        Map<String, Map<String, Object>> byDifficulty = new HashMap<>();
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(difficultySql)) {
-            while (rs.next()) {
-                Map<String, Object> diffStats = new HashMap<>();
-                diffStats.put("count", rs.getInt("count"));
-                diffStats.put("avg_score", rs.getDouble("avg_score"));
-                byDifficulty.put(rs.getString("difficulty"), diffStats);
-            }
-        }
-        stats.put("by_difficulty", byDifficulty);
-
-        return stats;
+        return metricsRepository.getGameStatistics(period);
     }
 
     public Map<String, Object> getUserRegistrationStats(String period) throws SQLException {
-        String timeFilter = switch (period) {
-            case "daily" -> "datetime('now', '-1 day')";
-            case "weekly" -> "datetime('now', '-7 days')";
-            case "monthly" -> "datetime('now', '-30 days')";
-            default -> "datetime('now', '-7 days')";
-        };
-
-        Map<String, Object> stats = new HashMap<>();
-
-        String sql = "SELECT COUNT(*) as new_users FROM users WHERE created_at > " + timeFilter;
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                stats.put("new_users", rs.getInt("new_users"));
-            }
-        }
-
-        String totalSql = "SELECT COUNT(*) as total_users FROM users";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(totalSql)) {
-            if (rs.next()) {
-                stats.put("total_users", rs.getInt("total_users"));
-            }
-        }
-
-        return stats;
+        return metricsRepository.getUserRegistrationStats(period);
     }
 
     public Map<String, Object> getDatabaseStats() throws SQLException {
-        Map<String, Object> stats = new HashMap<>();
-
-        String[] tables = {"users", "player_bots", "mazes", "game_results", "lobbies", "lobby_players", "admin_metrics"};
-        for (String table : tables) {
-            String sql = "SELECT COUNT(*) as count FROM " + table;
-            try (Statement stmt = connection.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
-                if (rs.next()) {
-                    stats.put(table + "_count", rs.getInt("count"));
-                }
-            }
-        }
-
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery("PRAGMA page_count")) {
-            if (rs.next()) {
-                int pageCount = rs.getInt(1);
-                stats.put("page_count", pageCount);
-            }
-        }
-
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery("PRAGMA page_size")) {
-            if (rs.next()) {
-                int pageSize = rs.getInt(1);
-                stats.put("page_size", pageSize);
-                int pageCount = (int) stats.getOrDefault("page_count", 0);
-                stats.put("db_size_bytes", (long) pageCount * pageSize);
-            }
-        }
-
-        return stats;
+        return metricsRepository.getDatabaseStats();
     }
 
     public List<Map<String, Object>> getAverageWaitTimesByDifficulty() throws SQLException {
-        String sql = "SELECT m.difficulty, " +
-                "AVG(CAST((julianday(gr.played_at) - julianday(lp.joined_at)) * 86400 AS INTEGER)) as avg_wait_seconds, " +
-                "COUNT(*) as game_count " +
-                "FROM lobby_players lp " +
-                "JOIN lobbies l ON lp.lobby_id = l.id " +
-                "JOIN mazes m ON l.maze_id = m.id " +
-                "JOIN game_results gr ON l.last_game_id = gr.id " +
-                "WHERE l.status = 'FINISHED' AND gr.played_at > datetime('now', '-7 days') " +
-                "GROUP BY m.difficulty";
-
-        List<Map<String, Object>> results = new ArrayList<>();
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("difficulty", rs.getString("difficulty"));
-                row.put("avg_wait_seconds", rs.getDouble("avg_wait_seconds"));
-                row.put("game_count", rs.getInt("game_count"));
-                results.add(row);
-            }
-        }
-        return results;
+        return metricsRepository.getAverageWaitTimesByDifficulty();
     }
 
     public void cleanOldMetrics(int daysToKeep) throws SQLException {
-        String sql = "DELETE FROM admin_metrics WHERE timestamp < datetime('now', '-' || ? || ' days')";
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setInt(1, daysToKeep);
-            int deleted = pstmt.executeUpdate();
-            System.out.println("Cleaned up " + deleted + " old metrics records");
-        }
+        metricsRepository.cleanOldMetrics(daysToKeep);
     }
 
     public void vacuumDatabase() throws SQLException {
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("VACUUM");
-            System.out.println("Database vacuumed successfully");
-        }
+        metricsRepository.vacuumDatabase();
     }
 }
