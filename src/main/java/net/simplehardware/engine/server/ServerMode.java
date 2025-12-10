@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpsServer;
 import net.simplehardware.engine.server.database.DatabaseManager;
 import net.simplehardware.engine.server.handlers.*;
 import net.simplehardware.engine.server.security.SessionManager;
+import net.simplehardware.engine.server.services.AdminMetricsService;
 import net.simplehardware.engine.server.services.GameExecutionService;
 import net.simplehardware.engine.server.services.MazeGenerationService;
 
@@ -33,6 +34,7 @@ public class ServerMode {
     private final SessionManager sessionManager;
     private final MazeGenerationService mazeService;
     private final GameExecutionService gameService;
+    private final AdminMetricsService metricsService;
     private HttpServer server;
     private final Properties config;
     private ExecutorService executorService;
@@ -57,6 +59,8 @@ public class ServerMode {
 
         String gameDataDir = config.getProperty("game.data.directory", "data/games");
         this.gameService = new GameExecutionService(db, gameDataDir);
+
+        this.metricsService = new AdminMetricsService(db);
     }
 
     /**
@@ -108,12 +112,18 @@ public class ServerMode {
         createContext(server, "/api/user/search", new UserProfileHandler.SearchUsersHandler(db), debugMode);
         createContext(server, "/api/user/profile/", new UserProfileHandler.GetUserProfileHandler(db), debugMode);
 
+        // Admin handlers
+        createContext(server, "/api/admin/dashboard", new AdminHandler.AdminDashboardHandler(db, sessionManager, metricsService), debugMode);
+        createContext(server, "/api/admin/metrics/history", new AdminHandler.MetricsHistoryHandler(db, sessionManager), debugMode);
+        createContext(server, "/api/admin/database/manage", new AdminHandler.DatabaseManagementHandler(db, sessionManager), debugMode);
+        createContext(server, "/api/admin/system/status", new AdminHandler.SystemStatusHandler(db, sessionManager, metricsService), debugMode);
+
         // File data handlers (serve files by ID instead of direct file access)
         createContext(server, "/api/maze/file", new FileDataHandler.MazeFileHandler(db), debugMode);
         createContext(server, "/api/game/file", new FileDataHandler.GameFileHandler(db), debugMode);
 
-        // Static file handler for web pages
-        createContext(server, "/", new StaticFileHandler(config.getProperty("web.directory", "web")), debugMode);
+        // Static file handler for web pages (with authentication)
+        createContext(server, "/", new StaticFileHandler(config.getProperty("web.directory", "web"), sessionManager, db), debugMode);
 
         // Set up thread pool executor for handling requests concurrently
         int threadPoolSize = Runtime.getRuntime().availableProcessors() * 2;
@@ -134,6 +144,9 @@ public class ServerMode {
         // Start maze generation service
         int mazeGenInterval = Integer.parseInt(config.getProperty("maze.generation.interval.hours", "6"));
         mazeService.startScheduledGeneration(mazeGenInterval);
+
+        // Start metrics collection
+        metricsService.start();
 
         // Add shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
@@ -162,6 +175,7 @@ public class ServerMode {
 
         mazeService.stop();
         gameService.shutdown();
+        metricsService.shutdown();
 
         try {
             db.close();

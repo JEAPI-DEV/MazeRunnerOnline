@@ -30,13 +30,15 @@ async function handleLogin(event) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            // Store token and user info
             localStorage.setItem('token', data.token);
             localStorage.setItem('userId', data.userId);
             localStorage.setItem('username', data.username);
+            document.cookie = `token=${data.token}; path=/; max-age=3600; SameSite=Lax`;
 
-            // Redirect to dashboard
-            window.location.href = 'dashboard.html';
+
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 50);
         } else {
             showError(data.error || 'Login failed');
         }
@@ -76,6 +78,7 @@ async function handleRegister(event) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('userId', data.userId);
             localStorage.setItem('username', data.username);
+            document.cookie = `token=${data.token}; path=/; max-age=3600; SameSite=Strict`;
 
             // Redirect to dashboard
             window.location.href = 'dashboard.html';
@@ -91,6 +94,7 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
     localStorage.removeItem('username');
+    document.cookie = 'token=; path=/; max-age=0';
     window.location.href = 'index.html';
 }
 

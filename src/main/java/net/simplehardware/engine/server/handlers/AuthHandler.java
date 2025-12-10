@@ -84,8 +84,9 @@ public class AuthHandler {
 
                 // Create session
                 String token = sessionManager.createSession(user.getId(), user.getUsername());
+                exchange.getResponseHeaders().add("Set-Cookie", 
+                    "token=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=" + (60 * 60 * 24 * 7));
 
-                // Send response
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
                 response.put("token", token);
@@ -129,14 +130,13 @@ public class AuthHandler {
                         return;
                     }
 
-                    // Verify password
                     if (!PasswordHasher.verifyPassword(password, user.getPasswordHash())) {
                         sendResponse(exchange, 401, Map.of("error", "Invalid credentials"));
                         return;
                     }
-
-                    // Create session
                     String token = sessionManager.createSession(user.getId(), user.getUsername());
+                    exchange.getResponseHeaders().add("Set-Cookie", 
+                        "token=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=" + (60 * 60 * 24 * 7));
 
                     // Send response
                     Map<String, Object> response = new HashMap<>();

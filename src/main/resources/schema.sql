@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    user_type TEXT NOT NULL DEFAULT 'user' CHECK(user_type IN ('admin', 'user')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 -- Player bots table
@@ -120,3 +121,13 @@ FROM users u
     LEFT JOIN game_results gr ON u.id = gr.user_id
 GROUP BY u.id,
     u.username;
+-- Admin metrics table for system monitoring
+CREATE TABLE IF NOT EXISTS admin_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    metric_type TEXT NOT NULL,
+    metric_value REAL NOT NULL,
+    metadata TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_admin_metrics_timestamp ON admin_metrics(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_metrics_type ON admin_metrics(metric_type);

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Maze Runner</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <h1>Maze Runner</h1>
+            <div class="nav-links">
+                <a href="dashboard.html">Dashboard</a>
+                <a href="leaderboard.html">Leaderboard</a>
+                <a href="user-profile.html">User Profiles</a>
+                <a href="admin.html" class="active">Admin</a>
+                <a href="#" id="logoutBtn">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>Admin Dashboard</h1>
+        
+        <div class="admin-grid">
+            <div class="admin-card">
+                <h2>System Status</h2>
+                <div id="systemStatus">
+                    <div class="status-item">
+                        <span class="status-label">CPU Load:</span>
+                        <span id="cpuLoad" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Memory Usage:</span>
+                        <span id="memoryUsage" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Cache Hit Rate:</span>
+                        <span id="cacheHitRate" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Active Requests:</span>
+                        <span id="activeRequests" class="status-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h2>Database Stats</h2>
+                <div id="databaseStats">
+                    <div class="status-item">
+                        <span class="status-label">Total Users:</span>
+                        <span id="totalUsers" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Total Games:</span>
+                        <span id="totalGames" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Total Bots:</span>
+                        <span id="totalBots" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Database Size:</span>
+                        <span id="dbSize" class="status-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-card wide">
+                <h2>Game Statistics</h2>
+                <div class="stats-tabs">
+                    <button class="tab-btn active" data-period="daily">Daily</button>
+                    <button class="tab-btn" data-period="weekly">Weekly</button>
+                    <button class="tab-btn" data-period="monthly">Monthly</button>
+                </div>
+                <div id="gameStatsContent">
+                    <div class="stat-row">
+                        <div class="stat-box">
+                            <div class="stat-label">Total Games</div>
+                            <div id="periodTotalGames" class="stat-number">-</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Completed Games</div>
+                            <div id="periodCompletedGames" class="stat-number">-</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Average Score</div>
+                            <div id="periodAvgScore" class="stat-number">-</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Average Steps</div>
+                            <div id="periodAvgSteps" class="stat-number">-</div>
+                        </div>
+                    </div>
+                    <div id="difficultyBreakdown"></div>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h2>User Registrations</h2>
+                <div id="userRegistrations">
+                    <div class="status-item">
+                        <span class="status-label">Last 7 Days:</span>
+                        <span id="weeklyUsers" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Last 30 Days:</span>
+                        <span id="monthlyUsers" class="status-value">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Total Users:</span>
+                        <span id="totalRegistered" class="status-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="admin-card">
+                <h2>Average Wait Times</h2>
+                <div id="waitTimes">
+                    <p class="loading">Loading...</p>
+                </div>
+            </div>
+
+            <div class="admin-card wide">
+                <h2>Database Management</h2>
+                <div class="db-actions">
+                    <button id="cleanupMetricsBtn" class="action-btn">Clean Old Metrics</button>
+                    <button id="cleanupLobbiesBtn" class="action-btn">Cleanup Inactive Lobbies</button>
+                    <button id="vacuumDbBtn" class="action-btn">Vacuum Database</button>
+                </div>
+                <div id="actionResult" class="action-result"></div>
+            </div>
+
+            <div class="admin-card full-width">
+                <h2>System Metrics History</h2>
+                <div class="chart-controls">
+                    <select id="metricTypeSelect">
+                        <option value="cpu_load">CPU Load</option>
+                        <option value="memory_usage_percent">Memory Usage %</option>
+                        <option value="cache_hit_rate">Cache Hit Rate</option>
+                        <option value="requests_per_second">Requests/Second</option>
+                    </select>
+                    <select id="timeRangeSelect">
+                        <option value="1">Last Hour</option>
+                        <option value="6">Last 6 Hours</option>
+                        <option value="24" selected>Last 24 Hours</option>
+                        <option value="168">Last Week</option>
+                    </select>
+                    <button id="refreshChartBtn" class="action-btn">Refresh</button>
+                </div>
+                <div id="metricsChart" class="metrics-chart">
+                    <canvas id="chartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>

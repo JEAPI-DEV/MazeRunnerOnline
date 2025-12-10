@@ -9,15 +9,17 @@ public class User {
     private int id;
     private String username;
     private String passwordHash;
+    private String userType;
     private Timestamp createdAt;
 
     public User() {
     }
 
-    public User(int id, String username, String passwordHash, Timestamp createdAt) {
+    public User(int id, String username, String passwordHash, String userType, Timestamp createdAt) {
         this.id = id;
         this.username = username;
         this.passwordHash = passwordHash;
+        this.userType = userType;
         this.createdAt = createdAt;
     }
 
@@ -45,6 +47,14 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
+    public String getUserType() {
+        return userType;
+    }
+
+    public void setUserType(String userType) {
+        this.userType = userType;
+    }
+
     public Timestamp getCreatedAt() {
         return createdAt;
     }
@@ -53,11 +63,16 @@ public class User {
         this.createdAt = createdAt;
     }
 
+    public boolean isAdmin() {
+        return "admin".equals(userType);
+    }
+
     @Override
     public String toString() {
         return "User{" +
                 "id=" + id +
                 ", username='" + username + '\'' +
+                ", userType='" + userType + '\'' +
                 ", createdAt=" + createdAt +
                 '}';
     }

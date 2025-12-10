@@ -82,4 +82,32 @@ public class HandlerUtils {
         }
         return null;
     }
+
+    public static java.util.Map<String, String> parseQueryParams(String query) {
+        java.util.Map<String, String> params = new java.util.HashMap<>();
+        if (query == null || query.isEmpty()) {
+            return params;
+        }
+
+        String[] pairs = query.split("&");
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=");
+            if (keyValue.length == 2) {
+                try {
+                    params.put(keyValue[0], java.net.URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8));
+                } catch (Exception e) {
+                    params.put(keyValue[0], keyValue[1]);
+                }
+            }
+        }
+        return params;
+    }
+
+    public static Integer getUserIdFromSession(HttpExchange exchange, SessionManager sessionManager) {
+        SessionManager.SessionData session = validateSession(exchange, sessionManager);
+        if (session == null) {
+            return null;
+        }
+        return session.userId();
+    }
 }
