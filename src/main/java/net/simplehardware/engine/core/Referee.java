@@ -110,7 +110,6 @@ public class Referee {
             return ActionResult.fail("EMPTY");
         }
 
-        // Try to take a sheet (Level 5+) - Priority over Form
         if (leagueLevel >= 5 && floor.hasSheet()) {
             player.addSheet();
             floor.setSheet(false);
@@ -118,7 +117,6 @@ public class Referee {
             return ActionResult.ok("SHEET");
         }
 
-        // Try to take a form (Level 2+)
         if (leagueLevel >= 2 && floor.getForm() != null) {
             char form = floor.getForm();
             int formOwner = floor.getFormOwner();
@@ -172,7 +170,6 @@ public class Referee {
                 return ActionResult.fail("BLOCKED");
             }
 
-            // Kick sheet (Level 5+) - Priority over Form
             if (leagueLevel >= 5 && floor.hasSheet()) {
                 if (targetFloor.hasSheet()) {
                     return ActionResult.fail("BLOCKED");
@@ -182,7 +179,6 @@ public class Referee {
                 return ActionResult.ok(direction.name());
             }
 
-            // Kick form (Level 4+)
             if (floor.getForm() != null) {
                 if (targetFloor.getForm() != null) {
                     return ActionResult.fail("BLOCKED");
@@ -321,7 +317,6 @@ public class Referee {
         if (sortedPlayers.isEmpty())
             return null;
 
-        // Check if there's a unique winner or a tie for first place
         if (sortedPlayers.size() > 1) {
             Player first = sortedPlayers.get(0);
             Player second = sortedPlayers.get(1);

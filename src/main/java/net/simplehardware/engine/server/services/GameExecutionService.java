@@ -19,9 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 
-/**
- * Service for executing games and calculating scores
- */
 public class GameExecutionService {
     private final DatabaseManager db;
     private final ExecutorService executor;
@@ -34,8 +31,6 @@ public class GameExecutionService {
         this.db = db;
         this.gameDataDirectory = gameDataDirectory;
         this.executor = Executors.newFixedThreadPool(MAX_CONCURRENT_GAMES);
-
-        // Create game data directory
         new java.io.File(gameDataDirectory).mkdirs();
     }
 
@@ -111,11 +106,9 @@ public class GameExecutionService {
         boolean completed = playerSnapshot != null && playerSnapshot.finished() && !timedOut;
 
         double scorePercentage = calculateScore(stepsTaken, mazeModel.getMinSteps(), completed);
-        // Export game data for replay (even if timed out, so user can review)
         String gameDataPath = gameDataDirectory + "/game_" + System.currentTimeMillis() + "_u" + userId + ".json";
         WebViewerExporter.exportToJSON(engine.getGameHistory(), mazeModel.getName(), gameDataPath);
 
-        // Store result in database
         GameResult result = db.createGameResult(
                 userId,
                 botId,
@@ -180,11 +173,7 @@ public class GameExecutionService {
         if (stepsTaken <= minSteps) {
             return 100.0;
         }
-
-        // Calculate efficiency as (minSteps / stepsTaken) * 100
         double score = ((double) minSteps / stepsTaken) * 100.0;
-
-        // Ensure score doesn't exceed 100 (though it shouldn't with the above logic)
         return Math.min(100.0, score);
     }
 
@@ -277,13 +266,13 @@ public class GameExecutionService {
 
             playerResults.put(lp.getUserId(), result);
             if (firstGameResultId == -1) {
-                firstGameResultId = result.getId(); // Assuming GameResult has an getId() method
+                firstGameResultId = result.getId();
             }
         }
 
         db.updateLobbyStatus(lobbyId, "FINISHED");
         if (firstGameResultId != -1) {
-            db.updateLobbyLastGameId(lobbyId, firstGameResultId); // Link game to lobby
+            db.updateLobbyLastGameId(lobbyId, firstGameResultId);
         }
 
         Map<String, Object> response = new HashMap<>();
@@ -292,7 +281,6 @@ public class GameExecutionService {
         response.put("stepsTaken", stepsTaken);
         response.put("timedOut", timedOut);
         response.put("results", playerResults);
-
         return response;
     }
 

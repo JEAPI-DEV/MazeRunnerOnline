@@ -21,11 +21,9 @@ public class PlayerProcess {
         this.playerId = playerId;
         this.executor = Executors.newFixedThreadPool(2);
 
-        // Use absolute path for policy file to ensure it's found
         File policyFile = new File("bot.policy");
         String policyPath = policyFile.getAbsolutePath();
 
-        // Ensure jar path is absolute for the policy property
         String absJarPath = new File(jarPath).getAbsolutePath();
 
         ProcessBuilder pb = new ProcessBuilder(
@@ -35,16 +33,12 @@ public class PlayerProcess {
                 "-Dbot.jar.path=" + absJarPath,
                 "-jar",
                 jarPath);
-        // Don't redirect error stream - keep them separate
         this.process = pb.start();
-
-        // Separate readers for stdout and stderr
         this.stdoutReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
         this.stderrReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
         this.stdinWriter = new PrintWriter(new OutputStreamWriter(process.getOutputStream()), true);
         this.timedOut = false;
 
-        // Start background threads to capture stderr
         startStderrCapture();
     }
 
@@ -62,9 +56,7 @@ public class PlayerProcess {
                         stderrBuffer.append(line).append("\n");
                     }
                 }
-            } catch (IOException e) {
-                // Process ended
-            }
+            } catch (IOException ignored) { }
         });
     }
 

@@ -43,7 +43,6 @@ public class AuthHandler {
             }
 
             try {
-                // Parse request body
                 String body = new Scanner(exchange.getRequestBody(), StandardCharsets.UTF_8).useDelimiter("\\A").next();
                 @SuppressWarnings("unchecked")
                 Map<String, String> request = gson.fromJson(body, Map.class);
@@ -60,7 +59,6 @@ public class AuthHandler {
                     }
                 }
 
-                // Validate input
                 if (!PasswordHasher.isValidUsername(username)) {
                     sendResponse(exchange, 400, Map.of("error", "Invalid username (3-20 alphanumeric characters)"));
                     return;
@@ -72,17 +70,14 @@ public class AuthHandler {
                     return;
                 }
 
-                // Check if user exists
                 if (db.getUserByUsername(username) != null) {
                     sendResponse(exchange, 409, Map.of("error", "Username already exists"));
                     return;
                 }
 
-                // Create user
                 String passwordHash = PasswordHasher.hashPassword(password);
                 User user = db.createUser(username, passwordHash);
 
-                // Create session
                 String token = sessionManager.createSession(user.getId(), user.getUsername());
                 exchange.getResponseHeaders().add("Set-Cookie", 
                     "token=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=" + (60 * 60 * 24 * 7));
@@ -115,7 +110,6 @@ public class AuthHandler {
                 }
 
                 try {
-                    // Parse request body
                     String body = new Scanner(exchange.getRequestBody(), StandardCharsets.UTF_8).useDelimiter("\\A").next();
                     @SuppressWarnings("unchecked")
                     Map<String, String> request = gson.fromJson(body, Map.class);
@@ -123,7 +117,6 @@ public class AuthHandler {
                     String username = request.get("username");
                     String password = request.get("password");
 
-                    // Get user
                     User user = db.getUserByUsername(username);
                     if (user == null) {
                         sendResponse(exchange, 401, Map.of("error", "Invalid credentials"));
@@ -138,7 +131,6 @@ public class AuthHandler {
                     exchange.getResponseHeaders().add("Set-Cookie", 
                         "token=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=" + (60 * 60 * 24 * 7));
 
-                    // Send response
                     Map<String, Object> response = new HashMap<>();
                     response.put("success", true);
                     response.put("token", token);

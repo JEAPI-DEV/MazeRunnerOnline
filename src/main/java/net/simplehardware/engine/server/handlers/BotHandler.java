@@ -47,14 +47,9 @@ public class BotHandler {
                         return;
                     }
 
-                    // Read the uploaded file
                     byte[] requestBody = IOUtils.toByteArray(exchange.getRequestBody());
-
-                    // Simple multipart parsing (for production, use a proper library)
                     String boundary = contentType.split("boundary=")[1];
                     String bodyStr = new String(requestBody, StandardCharsets.UTF_8);
-
-                    // Extract bot name and file data
                     String botName = extractFormField(bodyStr);
                     byte[] fileData = extractFileData(requestBody, boundary);
 
@@ -63,7 +58,6 @@ public class BotHandler {
                         return;
                     }
 
-                    // Check if bot name already exists
                     if (db.checkBotNameExists(session.userId(), botName)) {
                         HandlerUtils.sendResponse(exchange, 409,
                                 Map.of("error", "Bot name '" + botName + "' is already in use"));
@@ -94,10 +88,7 @@ public class BotHandler {
                         fos.write(fileData);
                     }
 
-                    // Store in database
                     PlayerBot bot = db.createPlayerBot(session.userId(), botName, filePath);
-
-                    // Send response
                     Map<String, Object> response = new HashMap<>();
                     response.put("success", true);
                     response.put("botId", bot.getId());
@@ -194,14 +185,12 @@ public class BotHandler {
                 }
 
                 try {
-                    // Validate session
                     SessionManager.SessionData session = HandlerUtils.validateSession(exchange, sessionManager);
                     if (session == null) {
                         HandlerUtils.sendResponse(exchange, 401, Map.of("error", "Unauthorized"));
                         return;
                     }
 
-                    // Parse request body
                     @SuppressWarnings("unchecked")
                     Map<String, Object> body = gson.fromJson(new InputStreamReader(exchange.getRequestBody()), Map.class);
                     if (!body.containsKey("botId")) {
@@ -210,8 +199,6 @@ public class BotHandler {
                     }
 
                     int botId = ((Double) body.get("botId")).intValue();
-
-                    // Set default
                     db.setUserDefaultBot(session.userId(), botId);
 
                     HandlerUtils.sendResponse(exchange, 200, Map.of("success", true));
@@ -237,14 +224,12 @@ public class BotHandler {
                 }
 
                 try {
-                    // Validate session
                     SessionManager.SessionData session = HandlerUtils.validateSession(exchange, sessionManager);
                     if (session == null) {
                         HandlerUtils.sendResponse(exchange, 401, Map.of("error", "Unauthorized"));
                         return;
                     }
 
-                    // Parse request body
                     Map<String, Object> body = gson.fromJson(new InputStreamReader(exchange.getRequestBody()), Map.class);
                     if (!body.containsKey("botId")) {
                         HandlerUtils.sendResponse(exchange, 400, Map.of("error", "botId is required"));
@@ -253,11 +238,9 @@ public class BotHandler {
 
                     int botId = ((Double) body.get("botId")).intValue();
 
-                    // Delete from DB and get file path
                     String filePath = db.deletePlayerBot(session.userId(), botId);
 
                     if (filePath != null) {
-                        // Delete file
                         File file = new File(filePath);
                         if (file.exists()) {
                             file.delete();

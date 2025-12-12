@@ -25,7 +25,6 @@ public class PlayerBot {
         this.isDefault = isDefault;
     }
 
-    // Constructor for backward compatibility or when isDefault is not yet known
     public PlayerBot(int id, int userId, String botName, String jarPath, Timestamp uploadedAt) {
         this(id, userId, botName, jarPath, uploadedAt, false);
     }

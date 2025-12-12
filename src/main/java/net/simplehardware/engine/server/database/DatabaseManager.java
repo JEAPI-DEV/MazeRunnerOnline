@@ -37,8 +37,6 @@ public class DatabaseManager {
     public void initialize() throws SQLException {
         connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         connection.setAutoCommit(true);
-
-        // Enable foreign keys and performance optimizations
         try (Statement stmt = connection.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON");
             stmt.execute("PRAGMA journal_mode = WAL");  // Write-Ahead Logging for better concurrency
@@ -92,7 +90,6 @@ public class DatabaseManager {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                // Skip comments and empty lines
                 line = line.trim();
                 if (line.isEmpty() || line.startsWith("--")) {
                     continue;
@@ -100,7 +97,6 @@ public class DatabaseManager {
                 sql.append(line).append(" ");
             }
 
-            // Execute each statement
             String[] statements = sql.toString().split(";");
             try (Statement stmt = connection.createStatement()) {
                 for (String statement : statements) {

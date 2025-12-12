@@ -22,15 +22,12 @@ public class Maze {
     private final Cell[][] cells;
     private final String name;
     private final List<FormInfo> forms;
-
-    // Track player start positions
     private final Map<Integer, int[]> startPositions = new HashMap<>();
 
     public Maze(MazeInfoData data) {
         this.name = data.name;
         this.forms = data.forms != null ? data.forms : new ArrayList<>();
 
-        // Parse maze string
         String[] rows = data.maze.split("/");
         this.height = rows.length;
         this.width = rows[0].length() / 2; // Each cell is 2 characters
@@ -53,8 +50,6 @@ public class Maze {
 
                 Cell cell = createCell(x, y, cellType, playerId);
                 cells[x][y] = cell;
-
-                // Track start positions
                 if (cellType == '@') {
                     startPositions.put(playerId, new int[] { x, y });
                 }
@@ -66,7 +61,6 @@ public class Maze {
         return switch (type) {
             case '#' -> new WallCell(x, y);
             case '@' -> {
-                // Start position is just a floor cell
                 startPositions.put(playerId, new int[] { x, y });
                 yield new FloorCell(x, y);
             }
@@ -77,13 +71,11 @@ public class Maze {
                 yield floor;
             }
             default -> {
-                // Check if it's a form (A-Z)
                 if (Character.isLetter(type) && Character.isUpperCase(type)) {
                     FloorCell floor = new FloorCell(x, y);
                     floor.setForm(type, playerId);
                     yield floor;
                 }
-                // Default to floor
                 yield new FloorCell(x, y);
             }
         };
@@ -140,18 +132,13 @@ public class Maze {
 
         // Add opponent proximity indicator (Level 3+)
         if (leagueLevel >= 3) {
-            // Check if any opponent is HERE (on this cell)
             if (hasOpponent(x, y, allPlayers, currentPlayer)) {
                 info.append(" !");
             } else if (dir != null) {
-                // If not here, and we are looking in a direction, check further
                 int distance = findOpponentInDirection(x, y, dir, allPlayers, currentPlayer);
-                if (distance > 0) {
-                    info.append(" !").append(distance);
-                }
+                if (distance > 0) { info.append(" !").append(distance); }
             }
         }
-
         return info.toString();
     }
 
@@ -172,19 +159,14 @@ public class Maze {
 
         int checkX = startX + dx;
         int checkY = startY + dy;
-        int distance = 1; // Distance from neighbor.
+        int distance = 1;
 
         while (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
             Cell cell = cells[checkX][checkY];
             if (cell instanceof WallCell) {
-                break; // Wall blocks view
+                break;
             }
-
-            // Check for opponents at this position
-            if (hasOpponent(checkX, checkY, allPlayers, currentPlayer)) {
-                return distance;
-            }
-
+            if (hasOpponent(checkX, checkY, allPlayers, currentPlayer)) return distance;
             checkX += dx;
             checkY += dy;
             distance++;
@@ -217,7 +199,6 @@ public class Maze {
      * Remove forms and finish cells for players that aren't loaded
      */
     public void removeUnusedPlayerCells(List<Player> players) {
-        // Get set of loaded player IDs
         java.util.Set<Integer> loadedPlayerIds = new java.util.HashSet<>();
         for (Player player : players) {
             loadedPlayerIds.add(player.getId());
@@ -230,14 +211,13 @@ public class Maze {
             for (int x = 0; x < width; x++) {
                 Cell cell = cells[x][y];
 
-                // Remove finish cells for unloaded players
                 if (cell instanceof FinishCell finishCell) {
                     if (!loadedPlayerIds.contains(finishCell.getPlayerId())) {
                         cells[x][y] = new FloorCell(x, y);
                         finishRemoved++;
                     }
                 }
-                // Remove forms for unloaded players
+
                 else if (cell instanceof FloorCell floor) {
                     if (floor.getForm() != null && floor.getFormOwner() != null) {
                         if (!loadedPlayerIds.contains(floor.getFormOwner())) {
@@ -253,7 +233,6 @@ public class Maze {
         System.out.println(
                 "Removed " + formsRemoved + " forms and " + finishRemoved + " finish cells for unloaded players");
 
-        // Count remaining forms
         int remainingForms = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {

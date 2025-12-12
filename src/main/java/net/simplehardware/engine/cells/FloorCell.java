@@ -4,8 +4,8 @@ package net.simplehardware.engine.cells;
  * Walkable floor cell that can contain forms, sheets, or be empty
  */
 public class FloorCell extends Cell {
-    private Character form;  // Form letter (A, B, C, etc.) or null
-    private Integer formOwner;  // Player ID that owns the form
+    private Character form;
+    private Integer formOwner;
     private boolean hasSheet;
 
     public FloorCell(int x, int y) {

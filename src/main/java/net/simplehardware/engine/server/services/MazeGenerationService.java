@@ -156,7 +156,6 @@ public class MazeGenerationService {
             String alphabetCode = Alphabet_codes[random.nextInt(Alphabet_codes.length)];
             String animalName = animal_names[random.nextInt(animal_names.length)];
 
-            // Create name with difficulty prefix
             final String candidateName = alphabetCode + "_" + animalName + "_" + difficulty.name().toLowerCase();
             List<Maze> existingMazes = db.getActiveMazes();
             boolean nameExists = existingMazes.stream()
@@ -221,7 +220,6 @@ public class MazeGenerationService {
                 "--name", mazeName,
                 "--output", outputPath);
 
-        // Redirect output for debugging
         processBuilder.inheritIO();
         Process process = processBuilder.start();
         try {

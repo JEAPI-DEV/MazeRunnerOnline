@@ -17,9 +17,6 @@ import java.io.PrintStream;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Main game engine that coordinates the game flow
- */
 public class GameEngine {
     private final Maze maze;
     private final List<Player> players;
@@ -34,23 +31,19 @@ public class GameEngine {
     private final int turnInfo;
 
     private final Map<Player, ActionResult> lastResults;
-    // private GameViewer viewer; // Removed
+
     private boolean randomSpawn = false;
     private final Map<Integer, StringBuilder> playerLogs = new HashMap<>();
-    private final List<String> jarPaths; // Store jar paths for logging filenames
     private final ByteArrayOutputStream outputCapture = new ByteArrayOutputStream();
     private final ByteArrayOutputStream errorCapture = new ByteArrayOutputStream();
     private final StringBuilder protocolCapture = new StringBuilder();
     private final PrintStream originalOut = System.out;
     private final PrintStream originalErr = System.err;
-
-    // Game history for GUI viewer
     private final List<GameState> gameHistory = new ArrayList<>();
     private final Map<Integer, PlayerLog> currentTurnLogs = new HashMap<>();
 
     public GameEngine(Maze maze, List<String> jarPaths, GameConfig config) {
         this.maze = maze;
-        this.jarPaths = new ArrayList<>(jarPaths);
         this.leagueLevel = config.leagueLevel;
         this.maxTurns = config.maxTurns;
         this.turnTimeout = config.turnTimeoutMs;
@@ -63,21 +56,12 @@ public class GameEngine {
         this.playerProcesses = new HashMap<>();
         this.lastResults = new HashMap<>();
 
-        // Initialize players
         initializePlayers(jarPaths);
-
-        // Apply level restrictions (Level 1: No forms)
         maze.applyLevelRestrictions(leagueLevel);
 
-        // Assign forms to players
         assignForms();
-
-        // Remove forms and finish cells for unloaded players
         maze.removeUnusedPlayerCells(players);
-
-        // Update finish cells with required form counts
         maze.updateFinishCells(players);
-
         this.referee = new Referee(maze, players, leagueLevel, config.debug == 1);
     }
 
@@ -145,7 +129,6 @@ public class GameEngine {
                     }
                 }
             }
-            // Sort assigned forms alphabetically
             player.getAssignedForms().sort(Character::compareTo);
         }
     }
@@ -162,12 +145,10 @@ public class GameEngine {
                 continue;
 
             PlayerProcess process = playerProcesses.get(player);
-
-            // Send initialization data
-            // Line 1: MAZE_WIDTH MAZE_HEIGHT LEAGUE_LEVEL
+            // MAZE_WIDTH MAZE_HEIGHT LEAGUE_LEVEL
             process.sendLine(maze.getWidth() + " " + maze.getHeight() + " " + leagueLevel);
 
-            // Line 2: PLAYER_ID START_X START_Y SHEETS_PER_PLAYER (Level 5+)
+            // PLAYER_ID START_X START_Y SHEETS_PER_PLAYER (Level 5+)
             String line2 = player.getId() + " " + player.getStartX() + " " + player.getStartY();
             if (leagueLevel >= 5) {
                 line2 += " " + sheetsPerPlayer;
@@ -201,17 +182,13 @@ public class GameEngine {
         captureGameState();
         System.out.println("\n=== Game Over ===");
         printFinalResults();
-        // Cleanup
         for (PlayerProcess process : playerProcesses.values()) {
             process.destroy();
         }
     }
 
     private void runTurn() {
-        //int turn = referee.getCurrentTurn() + 1;
         int turn = referee.getCurrentTurn();
-
-        // Capture game engine output for this turn
         outputCapture.reset();
         errorCapture.reset();
         protocolCapture.setLength(0);
@@ -232,8 +209,6 @@ public class GameEngine {
             // Send turn data (6 lines)
             sendTurnData(player, process);
             protocolCapture.append("\n");
-
-            // Receive player action
             try {
                 long timeout = (turn == 1 || turn == 2) ? firstTurnTimeout : turnTimeout;
 
@@ -266,18 +241,15 @@ public class GameEngine {
                     action = outputs.getLast();
                 }
                 if (outputs.size() > 1) {
-                    System.out.println(
-                            "Player " + player.getId() + " output " + outputs.size() + " lines, using: " + action);
+                    System.out.println("Player " + player.getId() + " output " + outputs.size() + " lines, using: " + action);
                 }
 
-                if (turnInfo == 1)
-                    System.out.println("Player " + player.getId() + ": " + action);
+                if (turnInfo == 1) System.out.println("Player " + player.getId() + ": " + action);
 
-                // Process action
                 ActionResult result = referee.processAction(player, action);
                 lastResults.put(player, result);
 
-                logToPlayer(player.getId(), action); // Log action sent by player
+                logToPlayer(player.getId(), action);
 
                 if (turnInfo == 1)
                     System.out.println("  Result: " + result);
@@ -312,7 +284,6 @@ public class GameEngine {
             process.resetIO();
         }
 
-        // Capture snapshot with all output streams
         String gameLog = outputCapture.toString();
         String playerStderr = playerStderrAll.toString();
         System.setOut(originalOut);
@@ -325,20 +296,17 @@ public class GameEngine {
     }
 
     private void sendTurnData(Player player, PlayerProcess process) {
-        // Line 1: Last action result
         ActionResult lastResult = lastResults.get(player);
         String line1 = lastResult.toString();
         process.sendLine(line1);
         protocolCapture.append(line1).append("\n");
         logToPlayer(player.getId(), line1);
 
-        // Line 2: Current cell status
         String currentCell = maze.getCellInfo(player.getX(), player.getY(), players, player, null, leagueLevel);
         process.sendLine(currentCell);
         protocolCapture.append(currentCell).append("\n");
         logToPlayer(player.getId(), currentCell);
 
-        // Lines 3-6: Neighboring cells (NORTH, EAST, SOUTH, WEST)
         for (Direction dir : Direction.values()) {
             int nx = player.getX() + dir.getDx();
             int ny = player.getY() + dir.getDy();
@@ -395,9 +363,6 @@ public class GameEngine {
         }
     }
 
-    /**
-     * Capture current game state for GUI viewer
-     */
     private void captureGameState() {
         Cell[][] cellGrid = new Cell[maze.getWidth()][maze.getHeight()];
         for (int x = 0; x < maze.getWidth(); x++) {
@@ -418,9 +383,6 @@ public class GameEngine {
         currentTurnLogs.clear();
     }
 
-    /**
-     * Get game history for GUI viewer
-     */
     public List<GameState> getGameHistory() {
         return new ArrayList<>(gameHistory);
     }

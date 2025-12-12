@@ -15,15 +15,15 @@ public class Player {
     private int y;
     private final Stack<Character> collectedForms;
     private final Stack<Integer> sheets;
-    private boolean talking; // Penalty state when players meet
-    private boolean taking; // Animation state during sheet pickup
+    private boolean talking;
+    private boolean taking;
     private boolean finished;
     private boolean active;
     private boolean timedOut;
     private int score;
     private Direction dir;
 
-    private final List<Character> assignedForms; // Forms this player needs to collect
+    private final List<Character> assignedForms;
     private final int startX;
     private final int startY;
 
@@ -41,8 +41,6 @@ public class Player {
         this.talking = false;
         this.taking = false;
         this.score = 0;
-
-        // Initialize sheets
         for (int i = 0; i < initialSheets; i++) {
             sheets.push(i);
         }
@@ -79,7 +77,7 @@ public class Player {
 
     public void addForm(char form) {
         collectedForms.push(form);
-        score += 10; // +10 points per form
+        score += 10;
     }
 
     public Character getNextExpectedForm() {
@@ -146,7 +144,7 @@ public class Player {
     public void setFinished(boolean finished) {
         this.finished = finished;
         if (finished) {
-            score += 100; // +100 points for completion
+            score += 100;
         }
     }
 
