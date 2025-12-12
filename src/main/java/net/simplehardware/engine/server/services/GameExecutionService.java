@@ -217,7 +217,7 @@ public class GameExecutionService {
         GameEngine.GameConfig config = new GameEngine.GameConfig();
         config.debug = 0;
         config.turnInfo = 0;
-        config.maxTurns = 1000;
+        config.maxTurns = 5000;
         config.turnTimeoutMs = 100;
         config.firstTurnTimeoutMs = 1000;
         config.sheetsPerPlayer = 2;
